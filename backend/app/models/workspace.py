@@ -35,6 +35,18 @@ class Workspace(Base):
     documents: Mapped[list["Document"]] = relationship(back_populates="workspace")
     chats: Mapped[list["Chat"]] = relationship(back_populates="workspace")
 
+    @property
+    def document_count(self) -> int:
+        return len(self.documents) if self.documents else 0
+
+    @property
+    def folder_count(self) -> int:
+        return len(self.folders) if self.folders else 0
+
+    @property
+    def source_count(self) -> int:
+        return 0
+
 
 class Folder(Base):
     __tablename__ = "folders"
@@ -48,6 +60,8 @@ class Folder(Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    color: Mapped[str] = mapped_column(String(7), nullable=False, default="#3B82F6")
+    icon: Mapped[str] = mapped_column(String(50), nullable=False, default="folder")
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(

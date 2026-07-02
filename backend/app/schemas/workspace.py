@@ -27,6 +27,9 @@ class WorkspaceResponse(BaseModel):
     description: str | None = None
     color: str
     icon: str
+    document_count: int
+    folder_count: int
+    source_count: int
     created_at: datetime
     updated_at: datetime
 
@@ -38,11 +41,15 @@ class FolderCreate(BaseModel):
     parent_id: UUID | None = None
     name: str = Field(min_length=1, max_length=255)
     description: str | None = None
+    color: str = "#3B82F6"
+    icon: str = "folder"
 
 
 class FolderUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
+    color: str | None = None
+    icon: str | None = None
     parent_id: UUID | None = None
     sort_order: int | None = None
 
@@ -53,6 +60,8 @@ class FolderResponse(BaseModel):
     parent_id: UUID | None = None
     name: str
     description: str | None = None
+    color: str
+    icon: str
     sort_order: int
     created_at: datetime
     updated_at: datetime

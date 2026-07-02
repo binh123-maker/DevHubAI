@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Folder as FolderIcon, MoreVertical, Pencil, Trash2 } from "lucide-react"
+import { Folder as FolderIcon, FileText, Briefcase, Book, Image as ImageIcon, Archive, MessageSquare, MoreVertical, Pencil, Trash2 } from "lucide-react"
 import { useState } from "react"
 
 import { getApiErrorMessage } from "@/api/axios"
@@ -14,6 +14,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+
+const ICONS: Record<string, React.ElementType> = {
+  folder: FolderIcon,
+  file: FileText,
+  briefcase: Briefcase,
+  book: Book,
+  image: ImageIcon,
+  archive: Archive,
+  message: MessageSquare,
+}
 
 interface FolderListProps {
   workspaceId: string
@@ -112,11 +122,15 @@ export function FolderList({ workspaceId }: FolderListProps) {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {folders.map((folder) => (
-            <Card key={folder.id} className="group relative overflow-hidden hover:border-primary/50 hover:bg-muted/50 transition-colors">
+          {folders.map((folder) => {
+            const Icon = ICONS[folder.icon] || FolderIcon;
+            return (
+            <Card key={folder.id} className="group relative overflow-hidden hover:border-primary/50 hover:bg-muted/50 transition-colors" style={{ borderTop: `3px solid ${folder.color}` }}>
               <CardContent className="p-4 flex items-start justify-between">
                 <div className="flex items-start gap-3 overflow-hidden">
-                  <FolderIcon className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+                  <div className="p-2 rounded-lg shrink-0 mt-0.5" style={{ backgroundColor: `${folder.color}15` }}>
+                    <Icon className="h-5 w-5" style={{ color: folder.color }} />
+                  </div>
                   <div className="overflow-hidden">
                     <p className="truncate font-medium leading-none" title={folder.name}>
                       {folder.name}
@@ -139,7 +153,7 @@ export function FolderList({ workspaceId }: FolderListProps) {
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => handleEdit(folder)}>
                       <Pencil className="mr-2 h-4 w-4" />
-                      Đổi tên
+                      Chỉnh sửa
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleDelete(folder)} className="text-destructive focus:text-destructive">
                       <Trash2 className="mr-2 h-4 w-4" />
@@ -149,7 +163,8 @@ export function FolderList({ workspaceId }: FolderListProps) {
                 </DropdownMenu>
               </CardContent>
             </Card>
-          ))}
+            )
+          })}
         </div>
       )}
 

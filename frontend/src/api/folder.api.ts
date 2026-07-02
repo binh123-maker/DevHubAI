@@ -6,6 +6,8 @@ export interface Folder {
   parent_id: string | null
   name: string
   description: string | null
+  color: string
+  icon: string
   sort_order: number
   created_at: string
   updated_at: string
@@ -16,11 +18,15 @@ export interface FolderCreatePayload {
   parent_id?: string | null
   name: string
   description?: string | null
+  color?: string
+  icon?: string
 }
 
 export interface FolderUpdatePayload {
   name?: string
   description?: string | null
+  color?: string
+  icon?: string
   parent_id?: string | null
   sort_order?: number
 }

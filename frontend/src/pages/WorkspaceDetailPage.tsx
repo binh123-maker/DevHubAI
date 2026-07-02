@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { format } from "date-fns"
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
@@ -99,10 +100,46 @@ export default function WorkspaceDetailPage() {
 
       <Card className="overflow-hidden">
         <div className="h-2" style={{ backgroundColor: workspace.color }} />
-        <CardHeader>
-          <CardTitle className="text-2xl">{workspace.name}</CardTitle>
-          {workspace.description && <p className="text-muted-foreground">{workspace.description}</p>}
+        <CardHeader className="pb-4">
+          <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+            <div>
+              <CardTitle className="text-2xl mb-2">{workspace.name}</CardTitle>
+            </div>
+            <div className="text-sm text-muted-foreground whitespace-nowrap">
+              Updated {format(new Date(workspace.updated_at), "dd MMM yyyy")}
+            </div>
+          </div>
         </CardHeader>
+        <CardContent>
+          <div className="grid gap-8 md:grid-cols-2">
+            <div>
+              <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Workspace Overview</h4>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Description</p>
+                <p className="text-sm text-muted-foreground">
+                  {workspace.description || "No description yet."}
+                </p>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Statistics</h4>
+              <div className="flex gap-6">
+                <div className="flex flex-col">
+                  <span className="text-2xl font-bold">{workspace.document_count}</span>
+                  <span className="text-sm text-muted-foreground">Documents</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-2xl font-bold">{workspace.folder_count}</span>
+                  <span className="text-sm text-muted-foreground">Folders</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-2xl font-bold">{workspace.source_count}</span>
+                  <span className="text-sm text-muted-foreground">Sources</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
       </Card>
       
       {/* Folder List */}

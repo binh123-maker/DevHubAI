@@ -6,6 +6,9 @@ export interface Workspace {
   description: string | null
   color: string
   icon: string
+  document_count: number
+  folder_count: number
+  source_count: number
   created_at: string
   updated_at: string
 }

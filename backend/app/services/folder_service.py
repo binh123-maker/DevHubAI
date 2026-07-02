@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models.workspace import Folder, Workspace
 from app.schemas.workspace import FolderCreate, FolderUpdate
-from app.services.workspace_service import get_owned_workspace
+from app.services.workspace_service import _validate_color, get_owned_workspace
 
 class FolderError(Exception):
     def __init__(self, message: str, status_code: int = 400) -> None:
@@ -65,6 +65,8 @@ def create_folder(db: Session, user_id: UUID, payload: FolderCreate) -> Folder:
         parent_id=payload.parent_id,
         name=name,
         description=payload.description.strip() if payload.description else None,
+        color=_validate_color(payload.color),
+        icon=payload.icon.strip() or "folder",
         sort_order=0, # default
     )
     db.add(folder)
@@ -94,6 +96,15 @@ def update_folder(db: Session, user_id: UUID, folder_id: UUID, payload: FolderUp
 
     if payload.description is not None:
         folder.description = payload.description.strip() or None
+
+    if payload.color is not None:
+        folder.color = _validate_color(payload.color)
+
+    if payload.icon is not None:
+        icon = payload.icon.strip()
+        if not icon:
+            raise FolderError("Folder icon is required", status_code=422)
+        folder.icon = icon
 
     if payload.parent_id is not None:
         # validate parent
