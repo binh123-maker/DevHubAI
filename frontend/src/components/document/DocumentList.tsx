@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
-import { FileText, MoreHorizontal, Trash2, Loader2, AlertCircle, CheckCircle, X } from "lucide-react"
+import { FileText, MoreHorizontal, Trash2, Pencil, Loader2, AlertCircle, CheckCircle, X } from "lucide-react"
 import { useEffect, useState } from "react"
 
 import { getApiErrorMessage } from "@/api/axios"
@@ -15,6 +15,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { UploadDocumentModal } from "./UploadDocumentModal"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Table,
   TableBody,
@@ -43,6 +45,26 @@ export function DocumentList({ workspaceId, folderId }: DocumentListProps) {
   const [docToDelete, setDocToDelete] = useState<Document | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  // ── Rename state ──────────────────────────────────────────────────────────
+  const [docToRename, setDocToRename] = useState<Document | null>(null)
+  const [renameTitle, setRenameTitle] = useState("")
+  const [renameDescription, setRenameDescription] = useState("")
+  const [titleError, setTitleError] = useState<string | null>(null)
+
+  function openRenameModal(doc: Document) {
+    setDocToRename(doc)
+    setRenameTitle(doc.title)
+    setRenameDescription(doc.description ?? "")
+    setTitleError(null)
+    setError(null)
+    setSuccessMessage(null)
+  }
+
+  function closeRenameModal() {
+    setDocToRename(null)
+    setTitleError(null)
+  }
 
   // ── Selection state ──────────────────────────────────────────────────────
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -79,6 +101,38 @@ export function DocumentList({ workspaceId, folderId }: DocumentListProps) {
     },
     onError: (err) => setError(getApiErrorMessage(err, "Không thể xóa tài liệu.")),
   })
+
+  // ── Rename mutation ───────────────────────────────────────────────────────
+  const renameMutation = useMutation({
+    mutationFn: ({ id, title, description }: { id: string; title: string; description: string | null }) =>
+      documentApi.update(id, { title, description }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["documents", workspaceId] })
+      closeRenameModal()
+      setError(null)
+      setSuccessMessage("Tên tài liệu đã được cập nhật thành công.")
+    },
+    onError: (err) => setError(getApiErrorMessage(err, "Không thể đổi tên tài liệu.")),
+  })
+
+  function handleRenameSave() {
+    const trimmed = renameTitle.trim()
+    if (!trimmed) {
+      setTitleError("Tên không được để trống.")
+      return
+    }
+    if (trimmed.length > 255) {
+      setTitleError("Tên không được vượt quá 255 ký tự.")
+      return
+    }
+    setTitleError(null)
+    if (!docToRename) return
+    renameMutation.mutate({
+      id: docToRename.id,
+      title: trimmed,
+      description: renameDescription.trim() || null,
+    })
+  }
 
   // ── Bulk delete mutation ─────────────────────────────────────────────────
   const bulkDeleteMutation = useMutation({
@@ -285,6 +339,12 @@ export function DocumentList({ workspaceId, folderId }: DocumentListProps) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
+                          onClick={() => openRenameModal(doc)}
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Đổi tên
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
                           onClick={() => setDocToDelete(doc)}
                         >
@@ -307,6 +367,61 @@ export function DocumentList({ workspaceId, folderId }: DocumentListProps) {
         workspaceId={workspaceId}
         folderId={folderId}
       />
+
+      {/* ── Rename modal ─────────────────────────────────────────────────── */}
+      <Dialog open={!!docToRename} onOpenChange={(open) => !open && closeRenameModal()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Đổi tên tài liệu</DialogTitle>
+            <DialogDescription>
+              Cập nhật tên và mô tả cho tài liệu này.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="rename-title">Tên tài liệu <span className="text-destructive">*</span></Label>
+              <Input
+                id="rename-title"
+                value={renameTitle}
+                maxLength={255}
+                onChange={(e) => {
+                  setRenameTitle(e.target.value)
+                  if (titleError) setTitleError(null)
+                }}
+                onKeyDown={(e) => e.key === "Enter" && handleRenameSave()}
+                disabled={renameMutation.isPending}
+                placeholder="Tên tài liệu"
+                autoFocus
+              />
+              {titleError && (
+                <p className="text-xs text-destructive">{titleError}</p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="rename-description">Mô tả <span className="text-muted-foreground text-xs">(tùy chọn)</span></Label>
+              <Input
+                id="rename-description"
+                value={renameDescription}
+                onChange={(e) => setRenameDescription(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleRenameSave()}
+                disabled={renameMutation.isPending}
+                placeholder="Mô tả ngắn về tài liệu"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closeRenameModal} disabled={renameMutation.isPending}>
+              Huỷ
+            </Button>
+            <Button onClick={handleRenameSave} disabled={renameMutation.isPending}>
+              {renameMutation.isPending ? "Đang lưu..." : "Lưu"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Single delete confirm dialog (unchanged behaviour) ─────────── */}
       <Dialog open={!!docToDelete} onOpenChange={(open) => !open && setDocToDelete(null)}>

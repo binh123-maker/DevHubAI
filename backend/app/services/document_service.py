@@ -164,6 +164,30 @@ def delete_document(db: Session, user_id: UUID, document_id: UUID) -> None:
     db.commit()
 
 
+def update_document(
+    db: Session,
+    user_id: UUID,
+    document_id: UUID,
+    title: str,
+    description: str | None,
+) -> Document:
+    """Rename (and optionally redescribe) a document the user owns."""
+    document = get_owned_document(db, user_id, document_id)
+
+    title = title.strip()
+    if not title:
+        raise DocumentError("Title cannot be empty", status_code=422)
+    if len(title) > 255:
+        raise DocumentError("Title must be 255 characters or fewer", status_code=422)
+
+    document.title = title
+    document.description = description.strip() if description else None
+
+    db.commit()
+    db.refresh(document)
+    return document
+
+
 def bulk_delete_documents(db: Session, user_id: UUID, document_ids: list[UUID]) -> int:
     """Delete multiple documents owned by user_id. Returns the count of deleted documents."""
     count = 0

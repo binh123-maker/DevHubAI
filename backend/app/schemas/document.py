@@ -39,3 +39,8 @@ class ChunkResponse(BaseModel):
 class BulkDeleteRequest(BaseModel):
     document_ids: list[UUID]
 
+
+class DocumentUpdateRequest(BaseModel):
+    title: str
+    description: str | None = None
+

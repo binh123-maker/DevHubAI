@@ -28,6 +28,9 @@ export const documentApi = {
   
   delete: (id: string) => apiClient.delete<{ message: string }>(`/documents/${id}`),
 
+  update: (id: string, payload: { title: string; description?: string | null }) =>
+    apiClient.patch<Document>(`/documents/${id}`, payload),
+
   bulkDelete: (ids: string[]) =>
     apiClient.delete<{ message: string }>("/documents/bulk", {
       data: { document_ids: ids },

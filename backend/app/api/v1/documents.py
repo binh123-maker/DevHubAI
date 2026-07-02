@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import CurrentUser
 from app.db.session import get_db
 from app.schemas.common import MessageResponse
-from app.schemas.document import BulkDeleteRequest, ChunkResponse, DocumentResponse
+from app.schemas.document import BulkDeleteRequest, ChunkResponse, DocumentResponse, DocumentUpdateRequest
 from app.services import document_service
 
 router = APIRouter()
@@ -97,6 +97,26 @@ def get_document_chunks(
     """Return all text chunks extracted from this document."""
     try:
         return document_service.get_document_chunks(db, current_user.id, document_id)
+    except document_service.DocumentError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
+
+@router.patch("/{document_id}", response_model=DocumentResponse)
+def update_document(
+    document_id: UUID,
+    payload: DocumentUpdateRequest,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> DocumentResponse:
+    """Rename and/or update the description of a document."""
+    try:
+        return document_service.update_document(
+            db,
+            current_user.id,
+            document_id,
+            payload.title,
+            payload.description,
+        )
     except document_service.DocumentError as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
 
