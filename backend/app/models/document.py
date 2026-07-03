@@ -48,7 +48,7 @@ class Document(Base):
     user: Mapped["User"] = relationship(back_populates="documents")
     workspace: Mapped["Workspace"] = relationship(back_populates="documents")
     folder: Mapped["Folder | None"] = relationship(back_populates="documents")
-    chunks: Mapped[list["DocumentChunk"]] = relationship(back_populates="document")
+    chunks: Mapped[list["DocumentChunk"]] = relationship(back_populates="document", passive_deletes=True)
 
 
 class DocumentChunk(Base):
@@ -69,4 +69,4 @@ class DocumentChunk(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     document: Mapped["Document"] = relationship(back_populates="chunks")
-    citations: Mapped[list["Citation"]] = relationship(back_populates="chunk")
+    citations: Mapped[list["Citation"]] = relationship(back_populates="chunk", passive_deletes=True)

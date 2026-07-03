@@ -92,6 +92,24 @@ def update_workspace(
 
 
 def delete_workspace(db: Session, user_id: UUID, workspace_id: UUID) -> None:
+    import shutil
+    from pathlib import Path
+    from app.core.config import settings
+
     workspace = get_owned_workspace(db, user_id, workspace_id)
+
+    # Delete all physical document files for this workspace before removing DB rows.
+    # The FK cascade handles DB cleanup; we handle disk cleanup here.
+    workspace_dir = Path(settings.upload_dir) / str(workspace_id)
+    if workspace_dir.is_dir():
+        try:
+            shutil.rmtree(workspace_dir)
+        except OSError as exc:
+            # Log but do not abort — a missing directory is not fatal.
+            import logging
+            logging.getLogger(__name__).warning(
+                "Could not remove workspace upload directory %s: %s", workspace_dir, exc
+            )
+
     db.delete(workspace)
     db.commit()

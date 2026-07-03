@@ -15,6 +15,19 @@ export interface Document {
   updated_at: string
 }
 
+export interface DocumentUpdatePayload {
+  title: string
+  description?: string | null
+}
+
+export interface UrlUploadPayload {
+  workspace_id: string
+  folder_id?: string | null
+  url: string
+  title?: string | null
+  description?: string | null
+}
+
 export const documentApi = {
   list: (workspaceId: string, folderId?: string) => {
     let url = `/documents?workspace_id=${workspaceId}`
@@ -25,6 +38,8 @@ export const documentApi = {
   },
   
   get: (id: string) => apiClient.get<Document>(`/documents/${id}`),
+  
+  getChunks: (id: string) => apiClient.get<any[]>(`/documents/${id}/chunks`),
   
   delete: (id: string) => apiClient.delete<{ message: string }>(`/documents/${id}`),
 
@@ -62,5 +77,9 @@ export const documentApi = {
         }
       },
     })
+  },
+
+  uploadUrl: (payload: UrlUploadPayload) => {
+    return apiClient.post<Document>("/documents/upload-url", payload)
   },
 }

@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
-import { FileText, MoreHorizontal, Trash2, Pencil, Loader2, AlertCircle, CheckCircle, X } from "lucide-react"
+import { FileText, MoreHorizontal, Trash2, Pencil, Loader2, AlertCircle, CheckCircle, ExternalLink, X } from "lucide-react"
 import { useEffect, useState } from "react"
+import { Link } from "react-router-dom"
 
 import { getApiErrorMessage } from "@/api/axios"
 import { type Document, documentApi } from "@/api/document.api"
@@ -96,6 +97,7 @@ export function DocumentList({ workspaceId, folderId }: DocumentListProps) {
     mutationFn: (id: string) => documentApi.delete(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["documents", workspaceId] })
+      void queryClient.invalidateQueries({ queryKey: ["workspaces", workspaceId] })
       setDocToDelete(null)
       setError(null)
     },
@@ -139,6 +141,7 @@ export function DocumentList({ workspaceId, folderId }: DocumentListProps) {
     mutationFn: (ids: string[]) => documentApi.bulkDelete(ids),
     onSuccess: (_data, ids) => {
       void queryClient.invalidateQueries({ queryKey: ["documents", workspaceId] })
+      void queryClient.invalidateQueries({ queryKey: ["workspaces", workspaceId] })
       setSelectedIds(new Set())
       setBulkDeleteOpen(false)
       setError(null)
@@ -312,10 +315,14 @@ export function DocumentList({ workspaceId, folderId }: DocumentListProps) {
                   </TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <span className="truncate max-w-[200px] md:max-w-[300px]" title={doc.title}>
+                      <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <Link
+                        to={`/documents/${doc.id}`}
+                        className="truncate max-w-[200px] md:max-w-[300px] hover:underline hover:text-primary"
+                        title={doc.title}
+                      >
                         {doc.title}
-                      </span>
+                      </Link>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -338,6 +345,12 @@ export function DocumentList({ workspaceId, folderId }: DocumentListProps) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                          <Link to={`/documents/${doc.id}`}>
+                            <ExternalLink className="mr-2 h-4 w-4" />
+                            Xem chi tiết
+                          </Link>
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => openRenameModal(doc)}
                         >

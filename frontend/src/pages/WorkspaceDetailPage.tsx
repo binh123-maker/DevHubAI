@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { format } from "date-fns"
-import { ArrowLeft, Pencil, Trash2 } from "lucide-react"
+import { ArrowLeft, ChevronRight, FolderOpen, Pencil, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 
@@ -20,6 +20,9 @@ export default function WorkspaceDetailPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // ── Folder navigation state ──────────────────────────────────────────────
+  const [activeFolder, setActiveFolder] = useState<{ id: string; name: string } | null>(null)
 
   const { data: workspace, isLoading, isError } = useQuery({
     queryKey: ["workspaces", id],
@@ -143,11 +146,36 @@ export default function WorkspaceDetailPage() {
       </Card>
       
       {/* Folder List */}
-      <FolderList workspaceId={workspace.id} />
+      <FolderList
+        workspaceId={workspace.id}
+        activeFolderId={activeFolder?.id}
+        onFolderClick={(folder) => setActiveFolder({ id: folder.id, name: folder.name })}
+        onFolderDeleted={() => {
+          setActiveFolder(null)
+          void queryClient.invalidateQueries({ queryKey: ["documents", workspace.id] })
+        }}
+      />
 
-      {/* Document List */}
-      <div className="mt-8">
-        <DocumentList workspaceId={workspace.id} />
+      {/* Document List with breadcrumb */}
+      <div className="mt-8 space-y-3">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <button
+            onClick={() => setActiveFolder(null)}
+            className="hover:text-foreground transition-colors font-medium flex items-center gap-1"
+          >
+            <FolderOpen className="h-4 w-4" />
+            {workspace.name}
+          </button>
+          {activeFolder && (
+            <>
+              <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+              <span className="font-medium text-foreground truncate">{activeFolder.name}</span>
+            </>
+          )}
+        </div>
+
+        <DocumentList workspaceId={workspace.id} folderId={activeFolder?.id} />
       </div>
 
       <WorkspaceFormDialog

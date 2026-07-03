@@ -1,13 +1,16 @@
 from typing import Annotated, Optional
 from uuid import UUID
 
+from typing import Annotated, Optional
+from fastapi import File, Form, UploadFile
+
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import CurrentUser
 from app.db.session import get_db
 from app.schemas.common import MessageResponse
-from app.schemas.document import BulkDeleteRequest, ChunkResponse, DocumentResponse, DocumentUpdateRequest
+from app.schemas.document import BulkDeleteRequest, ChunkResponse, DocumentResponse, DocumentUpdateRequest, UrlUploadRequest
 from app.services import document_service
 
 router = APIRouter()
@@ -30,6 +33,34 @@ def list_documents(
             raise HTTPException(status_code=e.status_code, detail=e.message)
         raise
 
+@router.post("/upload-url", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
+def upload_document_url(
+    payload: UrlUploadRequest,
+    current_user: CurrentUser,
+    db: DbSession,
+    background_tasks: BackgroundTasks,
+) -> DocumentResponse:
+    try:
+        document = document_service.upload_document_from_url(
+            db=db,
+            user_id=current_user.id,
+            workspace_id=payload.workspace_id,
+            folder_id=payload.folder_id,
+            url=payload.url,
+            title=payload.title,
+            description=payload.description,
+        )
+        # Trigger download & processing asynchronously
+        background_tasks.add_task(document_service.download_and_process_url, document.id, payload.url)
+        return document
+    except document_service.DocumentError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+    except Exception as e:
+        from app.services.workspace_service import WorkspaceError
+        from app.services.folder_service import FolderError
+        if isinstance(e, (WorkspaceError, FolderError)):
+            raise HTTPException(status_code=e.status_code, detail=e.message)
+        raise
 
 @router.post("/upload", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
 def upload_document(
@@ -52,8 +83,8 @@ def upload_document(
             title=title,
             description=description,
         )
-        # Trigger processing asynchronously — does not block the HTTP response
-        background_tasks.add_task(document_service.trigger_processing, db, document)
+        # Trigger processing asynchronously
+        background_tasks.add_task(document_service.trigger_processing_task, document.id)
         return document
     except document_service.DocumentError as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)

@@ -103,42 +103,60 @@ def upload_document(
 
     # 4. Save file and get size
     file_size = 0
-    with open(file_path, "wb") as buffer:
-        while chunk := file.file.read(8192):
-            file_size += len(chunk)
-            if file_size > MAX_FILE_SIZE:
-                file_path.unlink(missing_ok=True)
-                raise DocumentError(f"File too large. Maximum size is {MAX_FILE_SIZE / (1024 * 1024):.0f}MB", status_code=413)
-            buffer.write(chunk)
+    try:
+        with open(file_path, "wb") as buffer:
+            while chunk := file.file.read(8192):
+                file_size += len(chunk)
+                if file_size > MAX_FILE_SIZE:
+                    raise DocumentError(f"File too large. Maximum size is {MAX_FILE_SIZE / (1024 * 1024):.0f}MB", status_code=413)
+                buffer.write(chunk)
 
-    # 5. Save to database
-    doc_title = title.strip() if title else (file.filename or "Untitled")
-    
-    document = Document(
-        id=file_id,
-        user_id=user_id,
-        workspace_id=workspace_id,
-        folder_id=folder_id,
-        title=doc_title,
-        description=description.strip() if description else None,
-        file_name=file.filename or "unknown",
-        file_type=ext.lstrip("."),
-        file_size=file_size,
-        file_path=str(file_path),
-        status=DocumentStatus.UPLOADING,
-    )
+        # 5. Save to database
+        doc_title = title.strip() if title else (file.filename or "Untitled")
+        
+        document = Document(
+            id=file_id,
+            user_id=user_id,
+            workspace_id=workspace_id,
+            folder_id=folder_id,
+            title=doc_title,
+            description=description.strip() if description else None,
+            file_name=file.filename or "unknown",
+            file_type=ext.lstrip("."),
+            file_size=file_size,
+            file_path=str(file_path),
+            status=DocumentStatus.UPLOADING,
+        )
 
-    db.add(document)
-    db.commit()
-    db.refresh(document)
+        db.add(document)
+        db.commit()
+        db.refresh(document)
 
-    return document
+        return document
+    except Exception as e:
+        file_path.unlink(missing_ok=True)
+        raise e
 
 
-def trigger_processing(db: Session, document: Document) -> None:
+def trigger_processing_task(document_id: UUID) -> None:
     """Run the document processing pipeline synchronously (called from BackgroundTask)."""
-    from app.services.processing_service import process_document  # local import to avoid circular
-    process_document(db, document)
+    from app.db.session import SessionLocal
+    from app.services.processing_service import process_document
+
+    db = SessionLocal()
+    try:
+        document = db.scalar(select(Document).where(Document.id == document_id))
+        if document:
+            process_document(db, document)
+    except Exception as exc:
+        logger.exception("Failed to process document %s: %s", document_id, exc)
+        db.rollback()
+        document = db.scalar(select(Document).where(Document.id == document_id))
+        if document:
+            document.status = DocumentStatus.FAILED
+            db.commit()
+    finally:
+        db.close()
 
 
 def get_document_chunks(db: Session, user_id: UUID, document_id: UUID) -> list[DocumentChunk]:
@@ -156,9 +174,10 @@ def delete_document(db: Session, user_id: UUID, document_id: UUID) -> None:
     document = get_owned_document(db, user_id, document_id)
     
     # Delete physical file
-    file_path = Path(document.file_path)
-    if file_path.exists():
-        file_path.unlink(missing_ok=True)
+    if document.file_path:
+        file_path = Path(document.file_path)
+        if file_path.is_file():
+            file_path.unlink(missing_ok=True)
         
     db.delete(document)
     db.commit()
@@ -196,6 +215,327 @@ def bulk_delete_documents(db: Session, user_id: UUID, document_ids: list[UUID]) 
             delete_document(db, user_id, document_id)
             count += 1
         except DocumentError:
-            # Skip documents that don't exist or don't belong to the user
-            pass
+            continue
+        
     return count
+
+def is_safe_url(url: str) -> bool:
+    import socket
+    import ipaddress
+    from urllib.parse import urlparse
+    
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        return False
+        
+    hostname = parsed.hostname
+    if not hostname:
+        return False
+        
+    if hostname.lower() == "localhost":
+        return False
+        
+    try:
+        ips = socket.gethostbyname_ex(hostname)[2]
+        for ip in ips:
+            ip_obj = ipaddress.ip_address(ip)
+            if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local or ip_obj.is_multicast or ip_obj.is_unspecified:
+                return False
+    except socket.gaierror:
+        return False
+        
+    return True
+
+def upload_document_from_url(
+    db: Session,
+    user_id: UUID,
+    workspace_id: UUID,
+    folder_id: UUID | None,
+    url: str,
+    title: str | None,
+    description: str | None,
+) -> Document:
+
+    if not is_safe_url(url):
+        raise DocumentError(
+            "Invalid or unsafe URL",
+            status_code=400,
+        )
+
+    # 1. Validate ownership
+    get_owned_workspace(db, user_id, workspace_id)
+    if folder_id:
+        folder = get_owned_folder(db, user_id, folder_id)
+        if folder.workspace_id != workspace_id:
+            raise DocumentError("Folder does not belong to the specified workspace", status_code=400)
+
+    # 2. Create placeholder document
+    file_id = uuid.uuid4()
+    doc_title = title.strip() if title else url
+    
+    document = Document(
+        id=file_id,
+        user_id=user_id,
+        workspace_id=workspace_id,
+        folder_id=folder_id,
+        title=doc_title,
+        description=description.strip() if description else None,
+        file_name="url_download",
+        file_type="",
+        file_size=0,
+        file_path="",
+        status=DocumentStatus.UPLOADING,
+    )
+
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+    return document
+
+
+def extract_metadata(soup, fallback_url: str) -> tuple[str, str]:
+    title = fallback_url
+    
+    # Fix #4: use attrs={} dict for robust parser-independent attribute lookup
+    og_title = soup.find('meta', attrs={'property': 'og:title'})
+    if og_title and og_title.get('content'):
+        title = og_title['content']
+    elif soup.title and soup.title.string:
+        title = soup.title.string
+    else:
+        h1 = soup.find('h1')
+        if h1 and h1.get_text(strip=True):
+            title = h1.get_text(strip=True)
+            
+    desc = ""
+    meta_desc = soup.find('meta', attrs={'name': 'description'})
+    if meta_desc and meta_desc.get('content'):
+        desc = meta_desc['content']
+    else:
+        # Fix #4: use attrs={} dict for og:description too
+        og_desc = soup.find('meta', attrs={'property': 'og:description'})
+        if og_desc and og_desc.get('content'):
+            desc = og_desc['content']
+
+    # Fix #2: cap title to 255 chars to match DB VARCHAR column limit
+    title = title.strip()[:255]
+    return title, desc.strip()
+
+
+def remove_noise(soup) -> None:
+    import re
+    useless_tags = ["header", "footer", "nav", "aside", "script", "style", "svg", "canvas", "iframe", "noscript", "form"]
+    for tag in soup(useless_tags):
+        tag.decompose()
+        
+    for img in soup("img"):
+        img.decompose()
+        
+    noise_keywords = [
+        "sidebar", "menu", "navbar", "navigation", "footer", "header", "toc", 
+        "table-of-contents", "breadcrumb", "comments", "comment", "reply", 
+        "share", "social", "related", "recommend", "ads", "advertisement", 
+        "promo", "banner", "cookie", "newsletter", "pagination", "sponsor", 
+        "sponsors", "github-corner",
+        "build status", "coverage", "github stars", "pypi", "docker badge", "shields.io"
+    ]
+    # Fix #5: keep ci as a separate whole-word pattern to avoid matching
+    # legitimate substrings like "article", "social", "scientific", etc.
+    noise_regex = re.compile(
+        r'(?:' + '|'.join(re.escape(k) for k in noise_keywords) + r'|\bci\b)',
+        re.IGNORECASE
+    )
+    
+    def is_noisy(tag):
+        classes = tag.get('class', [])
+        classes_str = ' '.join(classes) if isinstance(classes, list) else str(classes)
+        if noise_regex.search(classes_str): return True
+        
+        tag_id = str(tag.get('id', ''))
+        if noise_regex.search(tag_id): return True
+        
+        alt = str(tag.get('alt', ''))
+        if noise_regex.search(alt): return True
+        
+        return False
+        
+    for tag in soup.find_all(is_noisy):
+        tag.decompose()
+        
+    # Fix #3: iterate over a reversed list so decomposing a parent does not
+    # corrupt the traversal of its already-visited children.
+    for tag in reversed(soup.find_all()):
+        if tag.name not in ['br', 'hr']:
+            if not tag.contents and not tag.get_text(strip=True):
+                tag.decompose()
+
+
+def extract_main_content(soup):
+    article = soup.find('article')
+    if article: return article
+    main = soup.find('main')
+    if main: return main
+    role_main = soup.find(attrs={"role": "main"})
+    if role_main: return role_main
+    body = soup.find('body')
+    if body: return body
+    return soup
+
+
+def html_to_markdown(html_content: str) -> str:
+    import markdownify
+    md = markdownify.markdownify(
+        html_content, 
+        heading_style="ATX",
+        strip=['img'],
+        default_title=True
+    )
+    return md
+
+
+def normalize_markdown(md_text: str) -> str:
+    import re
+    md_text = re.sub(r'\n{4,}', '\n\n\n', md_text)
+    return md_text.strip()
+
+
+def clean_html(html_text: str, fallback_url: str) -> tuple[str, str, str]:
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(html_text, 'lxml')
+    
+    title, desc = extract_metadata(soup, fallback_url)
+    remove_noise(soup)
+    main_content = extract_main_content(soup)
+    
+    md_text = html_to_markdown(str(main_content))
+    md_text = normalize_markdown(md_text)
+    
+    return md_text, title, desc
+
+
+def download_and_process_url(document_id: UUID, url: str) -> None:
+    """Download a file from a URL and trigger processing."""
+    import httpx
+    from urllib.parse import urlparse
+    from email.message import EmailMessage
+    from app.db.session import SessionLocal
+    from app.services.processing_service import process_document
+
+    db = SessionLocal()
+    file_path = None
+    try:
+        # Fetch document
+        document = db.scalar(select(Document).where(Document.id == document_id))
+        if not document:
+            return
+
+        with httpx.Client(follow_redirects=True, timeout=120.0) as client:
+            with client.stream("GET", url) as response:
+                response.raise_for_status()
+
+                ct = response.headers.get("content-type", "")
+
+                # Fix #1: pre-initialize all variables consumed after the if/else
+                # block so they are always bound regardless of which branch runs.
+                filename: str = "url_download"
+                ext: str = ""
+                size: int = 0
+                
+                if "text/html" in ct.lower():
+                    response.read()
+                    html_content = response.text
+                    
+                    md_text, page_title, page_desc = clean_html(html_content, url)
+                    
+                    content_bytes = md_text.encode('utf-8')
+                    size = len(content_bytes)
+                    
+                    if size > MAX_FILE_SIZE:
+                        raise ValueError(f"File too large. Max size is {MAX_FILE_SIZE / (1024 * 1024):.0f}MB")
+                        
+                    filename = f"webpage.md"
+                    safe_title = "".join([c for c in page_title if c.isalpha() or c.isdigit() or c==' ']).rstrip()
+                    if safe_title:
+                        filename = f"{safe_title[:50]}.md"
+                    ext = ".md"
+                    
+                    workspace_dir = UPLOAD_DIR / str(document.workspace_id)
+                    workspace_dir.mkdir(parents=True, exist_ok=True)
+                    file_path = workspace_dir / f"{document.id}{ext}"
+                    
+                    with open(file_path, "wb") as f:
+                        f.write(content_bytes)
+                        
+                    if page_title and (document.title == url or not document.title):
+                        document.title = page_title
+                    if page_desc and not document.description:
+                        document.description = page_desc
+                        
+                else:
+                    # Determine filename
+                    filename = "downloaded"
+                    cd = response.headers.get("content-disposition")
+                    if cd:
+                        msg = EmailMessage()
+                        msg['content-disposition'] = cd
+                        parsed_filename = msg.get_filename()
+                        if parsed_filename:
+                            filename = parsed_filename
+                    else:
+                        path = urlparse(url).path
+                        if path:
+                            name = Path(path).name
+                            if name:
+                                filename = name
+                    
+                    ext = Path(filename).suffix.lower()
+                    if not ext:
+                        if "pdf" in ct: ext = ".pdf"
+                        elif "markdown" in ct: ext = ".md"
+                        elif "plain" in ct: ext = ".txt"
+                        elif "wordprocessingml" in ct: ext = ".docx"
+                    
+                    if ext not in ALLOWED_EXTENSIONS:
+                        raise ValueError(f"Unsupported file extension: {ext}")
+                    
+                    # Setup path
+                    workspace_dir = UPLOAD_DIR / str(document.workspace_id)
+                    workspace_dir.mkdir(parents=True, exist_ok=True)
+                    file_path = workspace_dir / f"{document.id}{ext}"
+
+                    size = 0
+                    with open(file_path, "wb") as f:
+                        for chunk in response.iter_bytes(chunk_size=8192):
+                            size += len(chunk)
+                            if size > MAX_FILE_SIZE:
+                                raise ValueError(f"File too large. Max size is {MAX_FILE_SIZE / (1024 * 1024):.0f}MB")
+                            f.write(chunk)
+
+        # Update document
+        document.file_name = filename
+        document.file_type = ext.lstrip(".")
+        document.file_size = size
+        document.file_path = str(file_path)
+        db.commit()
+
+        # Trigger processing
+        process_document(db, document)
+
+    except Exception as exc:
+        logger.exception("Failed to download URL %s for document %s: %s", url, document_id, exc)
+        db.rollback()
+        
+        if file_path and file_path.exists():
+            file_path.unlink(missing_ok=True)
+            
+        doc = db.scalar(select(Document).where(Document.id == document_id))
+        if doc:
+            doc.status = DocumentStatus.FAILED
+            doc.file_name = "url_download"
+            doc.file_type = ""
+            doc.file_size = 0
+            doc.file_path = ""
+            db.commit()
+    finally:
+        db.close()
+

@@ -44,3 +44,10 @@ class DocumentUpdateRequest(BaseModel):
     title: str
     description: str | None = None
 
+class UrlUploadRequest(BaseModel):
+    workspace_id: UUID
+    folder_id: UUID | None = None
+    url: str
+    title: str | None = None
+    description: str | None = None
+

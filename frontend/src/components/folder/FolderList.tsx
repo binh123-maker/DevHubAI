@@ -27,9 +27,12 @@ const ICONS: Record<string, React.ElementType> = {
 
 interface FolderListProps {
   workspaceId: string
+  activeFolderId?: string
+  onFolderClick?: (folder: Folder) => void
+  onFolderDeleted?: () => void
 }
 
-export function FolderList({ workspaceId }: FolderListProps) {
+export function FolderList({ workspaceId, activeFolderId, onFolderClick, onFolderDeleted }: FolderListProps) {
   const queryClient = useQueryClient()
   const [formOpen, setFormOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -70,6 +73,8 @@ export function FolderList({ workspaceId }: FolderListProps) {
       void queryClient.invalidateQueries({ queryKey: ["folders", workspaceId] })
       setError(null)
       setDeleteOpen(false)
+      // Notify parent so it can clear active folder + refresh documents
+      onFolderDeleted?.()
     },
     onError: (err) => setError(getApiErrorMessage(err, "Không thể xóa thư mục.")),
   })
@@ -124,15 +129,25 @@ export function FolderList({ workspaceId }: FolderListProps) {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {folders.map((folder) => {
             const Icon = ICONS[folder.icon] || FolderIcon;
+            const isActive = folder.id === activeFolderId
             return (
-            <Card key={folder.id} className="group relative overflow-hidden hover:border-primary/50 hover:bg-muted/50 transition-colors" style={{ borderTop: `3px solid ${folder.color}` }}>
+            <Card
+              key={folder.id}
+              className={`group relative overflow-hidden transition-colors cursor-pointer ${
+                isActive
+                  ? "border-primary bg-primary/5 shadow-sm"
+                  : "hover:border-primary/50 hover:bg-muted/50"
+              }`}
+              style={{ borderTop: `3px solid ${folder.color}` }}
+              onClick={() => onFolderClick?.(folder)}
+            >
               <CardContent className="p-4 flex items-start justify-between">
                 <div className="flex items-start gap-3 overflow-hidden">
                   <div className="p-2 rounded-lg shrink-0 mt-0.5" style={{ backgroundColor: `${folder.color}15` }}>
                     <Icon className="h-5 w-5" style={{ color: folder.color }} />
                   </div>
                   <div className="overflow-hidden">
-                    <p className="truncate font-medium leading-none" title={folder.name}>
+                    <p className={`truncate font-medium leading-none ${isActive ? "text-primary" : ""}`} title={folder.name}>
                       {folder.name}
                     </p>
                     {folder.description && (
@@ -145,17 +160,22 @@ export function FolderList({ workspaceId }: FolderListProps) {
                 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 -mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 -mr-2 -mt-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <MoreVertical className="h-4 w-4" />
                       <span className="sr-only">Menu</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleEdit(folder)}>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEdit(folder) }}>
                       <Pencil className="mr-2 h-4 w-4" />
                       Chỉnh sửa
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDelete(folder)} className="text-destructive focus:text-destructive">
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDelete(folder) }} className="text-destructive focus:text-destructive">
                       <Trash2 className="mr-2 h-4 w-4" />
                       Xóa
                     </DropdownMenuItem>
