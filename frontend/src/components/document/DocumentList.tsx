@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
-import { FileText, MoreHorizontal, Trash2, Pencil, Loader2, AlertCircle, CheckCircle, ExternalLink, X } from "lucide-react"
+import { FileText, MoreHorizontal, Trash2, Pencil, Loader2, AlertCircle, CheckCircle, ExternalLink, X, Search, Filter, ArrowDownUp, ArrowUp, ArrowDown } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 
@@ -46,6 +46,12 @@ export function DocumentList({ workspaceId, folderId }: DocumentListProps) {
   const [docToDelete, setDocToDelete] = useState<Document | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  // ── Search, Filter & Sort state ──────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState("")
+  const [typeFilter, setTypeFilter] = useState("all")
+  const [sortBy, setSortBy] = useState<"name" | "date" | "size" | "status">("date")
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
 
   // ── Rename state ──────────────────────────────────────────────────────────
   const [docToRename, setDocToRename] = useState<Document | null>(null)
@@ -150,8 +156,32 @@ export function DocumentList({ workspaceId, folderId }: DocumentListProps) {
     onError: (err) => setError(getApiErrorMessage(err, "Không thể xóa các tài liệu đã chọn.")),
   })
 
+  // ── Data Processing (Filter & Sort) ──────────────────────────────────────
+  const uniqueFileTypes = Array.from(new Set(documents.map(d => d.file_type.toLowerCase()))).sort()
+
+  const filteredAndSortedDocuments = documents
+    .filter((doc) => {
+      const matchesSearch = doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        doc.file_name.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchesType = typeFilter === "all" || doc.file_type.toLowerCase() === typeFilter
+      return matchesSearch && matchesType
+    })
+    .sort((a, b) => {
+      let comparison = 0
+      if (sortBy === "name") {
+        comparison = a.title.localeCompare(b.title)
+      } else if (sortBy === "date") {
+        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      } else if (sortBy === "size") {
+        comparison = a.file_size - b.file_size
+      } else if (sortBy === "status") {
+        comparison = a.status.localeCompare(b.status)
+      }
+      return sortOrder === "asc" ? comparison : -comparison
+    })
+
   // ── Selection helpers ────────────────────────────────────────────────────
-  const allSelected = documents.length > 0 && selectedIds.size === documents.length
+  const allSelected = filteredAndSortedDocuments.length > 0 && selectedIds.size === filteredAndSortedDocuments.length
   const someSelected = selectedIds.size > 0 && !allSelected
 
   function toggleSelectAll() {
@@ -159,7 +189,7 @@ export function DocumentList({ workspaceId, folderId }: DocumentListProps) {
     if (allSelected) {
       setSelectedIds(new Set())
     } else {
-      setSelectedIds(new Set(documents.map((d) => d.id)))
+      setSelectedIds(new Set(filteredAndSortedDocuments.map((d) => d.id)))
     }
   }
 
@@ -232,6 +262,61 @@ export function DocumentList({ workspaceId, folderId }: DocumentListProps) {
         </div>
       )}
 
+      {/* ── Search, Filter & Sort Toolbar ──────────────────────────────── */}
+      {documents.length > 0 && (
+        <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between bg-muted/20 p-3 rounded-lg border border-border/50">
+          <div className="relative w-full md:w-64 shrink-0">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Tìm kiếm tài liệu..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 bg-background h-9"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+            <div className="flex items-center gap-2 text-sm border rounded-md bg-background px-3 h-9 shrink-0 focus-within:ring-1 focus-within:ring-ring">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <select
+                className="bg-transparent outline-none text-sm cursor-pointer w-full"
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+              >
+                <option value="all">Tất cả định dạng</option>
+                {uniqueFileTypes.map(type => (
+                  <option key={type} value={type}>{type.toUpperCase()}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2 text-sm border rounded-md bg-background px-3 h-9 shrink-0 focus-within:ring-1 focus-within:ring-ring">
+              <ArrowDownUp className="h-4 w-4 text-muted-foreground" />
+              <select
+                className="bg-transparent outline-none text-sm cursor-pointer w-full"
+                value={sortBy}
+                onChange={(e: any) => setSortBy(e.target.value)}
+              >
+                <option value="date">Ngày tải lên</option>
+                <option value="name">Tên tài liệu</option>
+                <option value="size">Kích thước</option>
+                <option value="status">Trạng thái</option>
+              </select>
+            </div>
+
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 shrink-0"
+              onClick={() => setSortOrder(prev => prev === "asc" ? "desc" : "asc")}
+              title={sortOrder === "asc" ? "Tăng dần" : "Giảm dần"}
+            >
+              {sortOrder === "asc" ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* ── Selection toolbar ──────────────────────────────────────────── */}
       {selectedCount > 0 && (
         <div className="flex items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-4 py-2 text-sm animate-in fade-in slide-in-from-top-1 duration-200">
@@ -271,6 +356,13 @@ export function DocumentList({ workspaceId, folderId }: DocumentListProps) {
           <p className="text-sm text-muted-foreground mb-4">Tải lên các file PDF, DOCX, TXT để bắt đầu.</p>
           <Button variant="outline" onClick={() => setUploadOpen(true)}>Tải lên ngay</Button>
         </div>
+      ) : filteredAndSortedDocuments.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center bg-muted/10">
+          <Search className="mb-2 h-10 w-10 text-muted-foreground/50" />
+          <h3 className="mb-1 font-medium">Không tìm thấy kết quả</h3>
+          <p className="text-sm text-muted-foreground mb-4">Thử thay đổi từ khóa hoặc bộ lọc của bạn.</p>
+          <Button variant="outline" onClick={() => { setSearchQuery(""); setTypeFilter("all") }}>Xóa bộ lọc</Button>
+        </div>
       ) : (
         <div className="rounded-md border">
           <Table>
@@ -282,7 +374,7 @@ export function DocumentList({ workspaceId, folderId }: DocumentListProps) {
                     type="checkbox"
                     aria-label="Chọn tất cả"
                     checked={allSelected}
-                    disabled={documents.length === 0}
+                    disabled={filteredAndSortedDocuments.length === 0}
                     ref={(el) => { if (el) el.indeterminate = someSelected }}
                     onChange={toggleSelectAll}
                     className="h-4 w-4 cursor-pointer rounded border-input accent-primary disabled:cursor-not-allowed disabled:opacity-40"
@@ -297,7 +389,7 @@ export function DocumentList({ workspaceId, folderId }: DocumentListProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {documents.map((doc) => (
+              {filteredAndSortedDocuments.map((doc) => (
                 <TableRow
                   key={doc.id}
                   data-state={selectedIds.has(doc.id) ? "selected" : undefined}
