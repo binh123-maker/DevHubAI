@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.dependencies import CurrentUser
 from app.db.session import get_db
-from app.schemas.chat import ChatCreate, ChatMessageCreate, ChatMessageResponse, ChatResponse
+from app.schemas.chat import ChatCreate, ChatMessageCreate, ChatMessageResponse, ChatResponse, ChatUpdate
 from app.services import chat_service
 
 router = APIRouter()
@@ -46,6 +46,19 @@ def get_chat(
         raise HTTPException(status_code=e.status_code, detail=e.message)
 
 
+@router.get("/{chat_id}/messages", response_model=list[ChatMessageResponse])
+def get_chat_messages(
+    chat_id: UUID,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> list[ChatMessageResponse]:
+    """Get all messages for a chat session."""
+    try:
+        return chat_service.get_chat_messages(db, current_user.id, chat_id)
+    except chat_service.ChatError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
+
 @router.post("/{chat_id}/messages", response_model=ChatMessageResponse)
 def send_message(
     chat_id: UUID,
@@ -56,5 +69,28 @@ def send_message(
     """Send a message to a chat, retrieve context, and get AI response."""
     try:
         return chat_service.send_message(db, current_user.id, chat_id, msg_in)
+    except chat_service.ChatError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+@router.patch("/{chat_id}", response_model=ChatResponse)
+def update_chat(
+    chat_id: UUID,
+    chat_in: ChatUpdate,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> ChatResponse:
+    try:
+        return chat_service.update_chat(db, current_user.id, chat_id, chat_in)
+    except chat_service.ChatError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
+
+@router.delete("/{chat_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_chat(
+    chat_id: UUID,
+    current_user: CurrentUser,
+    db: DbSession,
+):
+    try:
+        chat_service.delete_chat(db, current_user.id, chat_id)
     except chat_service.ChatError as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)

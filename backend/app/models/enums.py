@@ -31,6 +31,14 @@ class ChatMode(str, enum.Enum):
     WORKSPACE = "workspace"
     FOLDER = "folder"
     DOCUMENT = "document"
+    WEBSITE = "website"
+
+
+class ChatStatus(str, enum.Enum):
+    ACTIVE = "active"
+    GENERATING = "generating"
+    FAILED = "failed"
+    COMPLETED = "completed"
 
 
 class MessageRole(str, enum.Enum):

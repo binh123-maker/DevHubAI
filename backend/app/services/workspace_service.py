@@ -37,7 +37,7 @@ def list_workspaces(db: Session, user_id: UUID) -> list[Workspace]:
         db.scalars(
             select(Workspace)
             .where(Workspace.user_id == user_id)
-            .order_by(Workspace.created_at.desc())
+            .order_by(Workspace.created_at.desc(), Workspace.name.desc())
         )
     )
 

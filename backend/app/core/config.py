@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     max_upload_size_mb: int = 100
     
     gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash"
 
     @property
     def cors_origin_list(self) -> list[str]:

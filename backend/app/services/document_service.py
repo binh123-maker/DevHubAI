@@ -40,15 +40,15 @@ def validate_file(file: UploadFile) -> None:
     ext = Path(file.filename or "").suffix.lower()
     if ext not in ALLOWED_EXTENSIONS:
         raise DocumentError(
-            f"File extension not allowed. Allowed extensions: {', '.join(ALLOWED_EXTENSIONS)}",
-            status_code=415,
+            f"File type not allowed. Allowed extensions: {', '.join(ALLOWED_EXTENSIONS)}",
+            status_code=422,
         )
 
     # Check MIME type
     if file.content_type not in ALLOWED_MIME_TYPES:
         raise DocumentError(
-            f"File content type not allowed. Allowed types: {', '.join(ALLOWED_MIME_TYPES)}",
-            status_code=415,
+            f"File type not allowed. Allowed types: {', '.join(ALLOWED_MIME_TYPES)}",
+            status_code=422,
         )
 
 
@@ -143,7 +143,13 @@ def trigger_processing_task(document_id: UUID) -> None:
     from app.db.session import SessionLocal
     from app.services.processing_service import process_document
 
-    db = SessionLocal()
+    # Reuse testing session if running in a test client environment to see uncommitted data
+    from app.main import app
+    from app.db.session import get_db
+    if app.dependency_overrides.get(get_db):
+        db = next(app.dependency_overrides[get_db]())
+    else:
+        db = SessionLocal()
     try:
         document = db.scalar(select(Document).where(Document.id == document_id))
         if document:
@@ -285,6 +291,7 @@ def upload_document_from_url(
         file_size=0,
         file_path="",
         status=DocumentStatus.UPLOADING,
+        source_url=url,
     )
 
     db.add(document)
@@ -421,7 +428,13 @@ def download_and_process_url(document_id: UUID, url: str) -> None:
     from app.db.session import SessionLocal
     from app.services.processing_service import process_document
 
-    db = SessionLocal()
+    # Reuse testing session if running in a test client environment to see uncommitted data
+    from app.main import app
+    from app.db.session import get_db
+    if app.dependency_overrides.get(get_db):
+        db = next(app.dependency_overrides[get_db]())
+    else:
+        db = SessionLocal()
     file_path = None
     try:
         # Fetch document

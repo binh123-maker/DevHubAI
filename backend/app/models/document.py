@@ -39,6 +39,7 @@ class Document(Base):
         nullable=False,
         default=DocumentStatus.UPLOADING,
     )
+    source_url: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     view_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(

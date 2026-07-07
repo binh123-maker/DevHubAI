@@ -1,24 +1,18 @@
-import { Link, Outlet, useNavigate } from "react-router-dom"
+import { Link, Outlet } from "react-router-dom"
 
-import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/AuthContext"
 
 const navItems = [
   { to: "/workspaces", label: "Workspaces" },
-  { to: "/chat", label: "Chat" },
+  { to: "/history", label: "Chat History" },
   { to: "/profile", label: "Profile" },
 ]
 
 export function AppLayout() {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
-
-  async function handleLogout() {
-    await logout()
-    navigate("/login", { replace: true })
-  }
+  const { user } = useAuth()
 
   return (
+
     <div className="flex min-h-screen">
       <aside className="w-64 border-r bg-muted/30 p-4">
         <div className="mb-2 text-xl font-bold text-primary">DevHub AI</div>
@@ -34,13 +28,11 @@ export function AppLayout() {
             </Link>
           ))}
         </nav>
-        <Button variant="outline" className="mt-8 w-full" onClick={() => void handleLogout()}>
-          Logout
-        </Button>
       </aside>
       <main className="flex-1 p-8">
         <Outlet />
       </main>
     </div>
   )
+
 }

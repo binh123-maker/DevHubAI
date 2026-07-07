@@ -3,7 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
 import { AppLayout } from "@/components/layout/AppLayout"
 import { AuthLayout } from "@/components/layout/AuthLayout"
 import { ProtectedRoute, PublicOnlyRoute } from "@/components/routing/ProtectedRoute"
-import ChatPage from "@/pages/ChatPage"
+import ChatHistoryPage from "@/pages/ChatHistoryPage"
 import DocumentViewerPage from "@/pages/DocumentViewerPage"
 import LandingPage from "@/pages/LandingPage"
 import LoginPage from "@/pages/LoginPage"
@@ -30,8 +30,7 @@ export default function App() {
             <Route path="/workspaces" element={<WorkspaceListPage />} />
             <Route path="/workspaces/:id" element={<WorkspaceDetailPage />} />
             <Route path="/documents/:id" element={<DocumentViewerPage />} />
-            <Route path="/chat" element={<ChatPage />} />
-            <Route path="/chat/:id" element={<ChatPage />} />
+            <Route path="/history/:chatId?" element={<ChatHistoryPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
         </Route>

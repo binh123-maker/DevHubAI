@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-from app.models.enums import ChatMode, CitationSourceType, MessageRole
+from app.models.enums import ChatMode, CitationSourceType, MessageRole, ChatStatus
 
 if TYPE_CHECKING:
     from app.models.document import Document, DocumentChunk
@@ -33,6 +33,12 @@ class Chat(Base):
         nullable=False,
         default=ChatMode.GLOBAL,
     )
+    is_favorite: Mapped[bool] = mapped_column(nullable=False, default=False)
+    status: Mapped[ChatStatus] = mapped_column(
+        Enum(ChatStatus, name="chat_status", values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+        default=ChatStatus.COMPLETED,
+    )
     message_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
@@ -41,7 +47,11 @@ class Chat(Base):
 
     user: Mapped["User"] = relationship(back_populates="chats")
     workspace: Mapped["Workspace | None"] = relationship(back_populates="chats")
-    messages: Mapped[list["ChatMessage"]] = relationship(back_populates="chat")
+    messages: Mapped[list["ChatMessage"]] = relationship(
+        back_populates="chat",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
 
 
 class ChatMessage(Base):
@@ -60,7 +70,11 @@ class ChatMessage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     chat: Mapped["Chat"] = relationship(back_populates="messages")
-    citations: Mapped[list["Citation"]] = relationship(back_populates="message")
+    citations: Mapped[list["Citation"]] = relationship(
+        back_populates="message",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
 
 
 class Citation(Base):
