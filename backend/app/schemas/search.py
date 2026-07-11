@@ -13,5 +13,6 @@ class SearchResult(BaseModel):
     heading: str | None = None
     source_url: str | None = None
     relevance_score: float
+    chunk_index: int | None = None
 
     model_config = {"from_attributes": True}

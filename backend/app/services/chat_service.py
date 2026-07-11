@@ -1,4 +1,7 @@
-import google.generativeai as genai
+import re
+import difflib
+from collections import defaultdict
+from app.services.ai import AIOrchestrator
 from sqlalchemy.orm import Session
 from uuid import UUID
 import logging
@@ -13,11 +16,189 @@ from sqlalchemy import desc
 from sqlalchemy.orm import joinedload
 from app.models.enums import MessageRole, ChatMode, CitationSourceType
 from app.services.search_service import search_documents
+from app.services.query_rewriter import rewrite_query
 from app.schemas.chat import ChatCreate, ChatMessageCreate, ChatMessageResponse, CitationResponse, ChatUpdate, ChatResponse
- 
-# Configure Gemini
-if settings.gemini_api_key:
-    genai.configure(api_key=settings.gemini_api_key)
+
+
+def _is_noisy_chunk(content: str) -> bool:
+    stripped = content.strip()
+    if not stripped:
+        return True
+    
+    # 1. Less than 30 alphanumeric characters
+    useful_chars = [c for c in stripped if c.isalnum()]
+    if len(useful_chars) < 30:
+        return True
+        
+    # 2. Table of contents keywords or pattern
+    lower_content = stripped.lower()
+    if "mục lục" in lower_content or "table of contents" in lower_content:
+        return True
+    if len(re.findall(r'\.{5,}', stripped)) > 0 or len(re.findall(r'-{5,}', stripped)) > 0:
+        return True
+        
+    # 3. Only page numbers (e.g. "Trang 12" or "Page 12" or only digits)
+    if re.match(r'^(trang|page)?\s*\d+\s*$', lower_content):
+        return True
+        
+    # 4. Only heading: e.g. starts with # and has no newline
+    if stripped.startswith('#') and '\n' not in stripped:
+        return True
+        
+    return False
+
+
+def _clean_text(content: str) -> str:
+    lines = content.split('\n')
+    cleaned_lines = []
+    for line in lines:
+        stripped_line = line.strip()
+        if not stripped_line:
+            continue
+        
+        lower_line = stripped_line.lower()
+        # Strip SaveLikeReport, Download, AI tóm tắt
+        if "savelikereport" in lower_line or "download" in lower_line or "ai tóm tắt" in lower_line:
+            continue
+        if "save" in lower_line and "like" in lower_line and "report" in lower_line:
+            continue
+            
+        # Strip search URLs
+        if "/tim-kiem" in lower_line:
+            continue
+            
+        # Strip lines composed entirely of Markdown links
+        if re.match(r'^(\s*\[[^\]]+\]\([^)]+\)\s*)+$', stripped_line):
+            continue
+            
+        # Clean inline links: [text](url) -> text
+        stripped_line = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', stripped_line)
+        
+        # Strip HTML tags
+        stripped_line = re.sub(r'<[^>]+>', '', stripped_line)
+        
+        # Strip empty headings
+        if re.match(r'^#+\s*$', stripped_line):
+            continue
+            
+        cleaned_lines.append(stripped_line)
+        
+    return "\n".join(cleaned_lines)
+
+
+def _normalize_whitespace(text: str) -> str:
+    return re.sub(r'\s+', ' ', text).strip()
+
+
+def _extract_relevant_passages(cleaned_content: str, query: str) -> list[dict]:
+    keywords = set(tok for tok in query.lower().split() if tok.isalnum())
+    paragraphs = [p.strip() for p in cleaned_content.split('\n') if p.strip()]
+    
+    if not keywords:
+        # Fallback to returning normalized text if no keywords are matched
+        fallback_text = "\n".join(paragraphs[:2]).strip()
+        if len(fallback_text) > 400:
+            fallback_text = fallback_text[:400] + '...'
+        return [{"text": fallback_text, "matched_keywords": [], "reason": "Fallback to first paragraphs"}]
+        
+    selected_passages = []
+    for idx, para in enumerate(paragraphs):
+        para_lower = para.lower()
+        matched = [kw for kw in keywords if kw in para_lower]
+        if matched:
+            # Context window: 1 paragraph before, matching paragraph, 1 paragraph after
+            start_idx = max(0, idx - 1)
+            end_idx = min(len(paragraphs), idx + 2)
+            window = paragraphs[start_idx:end_idx]
+            
+            # Merge and normalize whitespace inside the merged passage
+            merged = _normalize_whitespace(" ".join(window))
+            
+            # Limit passage to 400 characters cleanly at word boundary
+            if len(merged) > 400:
+                truncated = merged[:400]
+                last_space = truncated.rfind(' ')
+                if last_space > 300:
+                    merged = truncated[:last_space] + '...'
+                else:
+                    merged = truncated + '...'
+                    
+            selected_passages.append({
+                "text": merged,
+                "matched_keywords": matched,
+                "reason": f"Paragraph {idx} matches terms: {', '.join(matched)}"
+            })
+            
+    return selected_passages
+
+
+def _are_passages_similar(p1: str, p2: str) -> bool:
+    return difflib.SequenceMatcher(None, p1.lower(), p2.lower()).ratio() > 0.90
+
+
+def _build_grounded_context(search_results: list, query: str) -> tuple[str, list]:
+    doc_groups = defaultdict(list)
+    for res in search_results:
+        doc_groups[res.document_id].append(res)
+        
+    merged_docs = []
+    citation_targets = []
+    
+    for doc_id, res_list in doc_groups.items():
+        res_list.sort(key=lambda x: x.chunk_index if x.chunk_index is not None else 0)
+        
+        doc_passages = []
+        max_score = -1.0
+        doc_name = res_list[0].document_name
+        source_url = res_list[0].source_url
+        
+        for res in res_list:
+            if _is_noisy_chunk(res.content):
+                continue
+                
+            cleaned = _clean_text(res.content)
+            passages = _extract_relevant_passages(cleaned, query)
+            
+            for p in passages:
+                # Deduplication logic (90% similarity threshold)
+                is_duplicate = False
+                for existing in doc_passages:
+                    if _are_passages_similar(p["text"], existing["text"]):
+                        is_duplicate = True
+                        break
+                if not is_duplicate:
+                    doc_passages.append(p)
+                    # Print debug log for selected passage
+                    logger.info(
+                        "[CONTEXT BUILDER DEBUG] Original chunk ID: %s | Extracted length: %d | Reason: %s | Matched keywords: %s",
+                        str(res.chunk_id),
+                        len(p["text"]),
+                        p["reason"],
+                        ", ".join(p["matched_keywords"])
+                    )
+            
+            if res.relevance_score > max_score:
+                max_score = res.relevance_score
+                
+            citation_targets.append(res)
+            
+        if doc_passages:
+            merged_docs.append({
+                "document_name": doc_name,
+                "max_score": max_score,
+                "passages": [p["text"] for p in doc_passages]
+            })
+            
+    merged_docs.sort(key=lambda x: x["max_score"], reverse=True)
+    
+    doc_parts = []
+    for md in merged_docs:
+        doc_header = f"[Document: {md['document_name']}]"
+        passages_joined = "\n\n---\n\n".join(md["passages"])
+        doc_parts.append(f"{doc_header}\n{passages_joined}")
+        
+    context_text = "\n\n--------------------------------\n\n".join(doc_parts)
+    return context_text, citation_targets
 
 
 class ChatError(Exception):
@@ -177,39 +358,51 @@ def send_message(db: Session, user_id: UUID, chat_id: UUID, msg_in: ChatMessageC
     chat.message_count += 1
     db.commit()
 
-    # 2. Retrieve Context (FTS)
+    # 2. Retrieve Context (FTS) with query rewriting + automatic fallback
+    rewritten = rewrite_query(msg_in.content)
+    logger.info("[QUERY REWRITER] original=%r  rewritten=%r", msg_in.content, rewritten)
+
     search_results = search_documents(
         db=db,
         user_id=user_id,
-        query=msg_in.content,
+        query=rewritten,
         workspace_id=chat.workspace_id,
         folder_id=chat.folder_id,
         document_id=chat.document_id,
         chat_mode=chat.chat_mode,
-        limit=5, # Top 5 chunks
+        limit=10,  # Top 10 chunks
     )
-    
+
+    # Fallback: if the rewritten query returned nothing and it actually
+    # differs from the original, retry with the raw user message.
+    if not search_results and rewritten != msg_in.content.lower().strip():
+        logger.info("[QUERY REWRITER] rewritten query returned 0 results, falling back to original")
+        search_results = search_documents(
+            db=db,
+            user_id=user_id,
+            query=msg_in.content,
+            workspace_id=chat.workspace_id,
+            folder_id=chat.folder_id,
+            document_id=chat.document_id,
+            chat_mode=chat.chat_mode,
+            limit=10,
+        )
+
     retrieved_chunk_count = len(search_results)
 
     # 3. Build Prompt and Call AI
-    if not search_results and chat.chat_mode != ChatMode.GLOBAL:
+    context_text, citation_targets = _build_grounded_context(search_results, rewritten)
+    
+    if not context_text and chat.chat_mode != ChatMode.GLOBAL:
         ai_content = "Tôi không tìm thấy tài liệu nào trong workspace hiện tại có chứa thông tin để trả lời câu hỏi của bạn. Vui lòng tải lên tài liệu liên quan hoặc điều chỉnh lại câu hỏi."
     else:
-        context_parts = []
-        for i, res in enumerate(search_results):
-            heading_info = f", Section: {res.heading}" if res.heading else ""
-            page_info = f", Page {res.page_number}" if res.page_number else ""
-            context_parts.append(
-                f"[Source {i+1}: {res.document_name}{page_info}{heading_info}]\n"
-                f"{res.content}"
-            )
-        context_text = "\n\n".join(context_parts)
-        
         system_instruction = (
-            "You are a helpful AI assistant for DevHub AI. "
-            "You MUST answer the user's question based ONLY on the provided Context Information from their workspace. "
-            "NEVER use external knowledge or hallucinate facts. "
-            "If the provided context does not contain the answer, you MUST say exactly: "
+            "You are a helpful AI assistant for DevHub AI.\n"
+            "You must answer the user's question based strictly on the provided Context Information from their workspace.\n"
+            "Never invent facts or use external knowledge not present in the context.\n"
+            "If the context contains enough information, provide the best and most accurate answer possible.\n"
+            "If the context only partially answers the question, answer using the available information and explicitly state what details are missing.\n"
+            "Only refuse to answer when absolutely no relevant context or information is present, in which case you must say exactly:\n"
             "'Tài liệu hiện tại không chứa đủ thông tin để tôi trả lời câu hỏi này.'"
         )
         
@@ -220,21 +413,17 @@ def send_message(db: Session, user_id: UUID, chat_id: UUID, msg_in: ChatMessageC
         # Load recent history (last 10 messages for context)
         history = db.query(ChatMessage).filter(ChatMessage.chat_id == chat.id).order_by(ChatMessage.created_at.asc()).limit(10).all()
         
-        # Exclude the just-saved user message from history for Gemini context (we send it as current message)
-        gemini_history = []
-        for h in history[:-1]:
-            role = "user" if h.role == MessageRole.USER else "model"
-            gemini_history.append({"role": role, "parts": [h.content]})
-
-        # Call Gemini API
+        # Call AIOrchestrator
         try:
-            model = genai.GenerativeModel(
-                model_name=settings.gemini_model,
-                system_instruction=system_instruction
+            response = AIOrchestrator.generate_response(
+                user_message=msg_in.content,
+                context_text=context_text,
+                history_messages=history[:-1],
+                system_instruction=system_instruction,
+                temperature=settings.ai_temperature,
+                max_tokens=settings.ai_max_tokens
             )
-            gemini_chat = model.start_chat(history=gemini_history)
-            response = gemini_chat.send_message(prompt)
-            ai_content = response.text
+            ai_content = response.content
         except Exception as e:
             ai_content = f"Sorry, I encountered an error communicating with the AI service: {str(e)}"
 
@@ -251,8 +440,8 @@ def send_message(db: Session, user_id: UUID, chat_id: UUID, msg_in: ChatMessageC
 
     # 4.5 Save Citations
     citation_responses = []
-    if search_results:
-        for res in search_results:
+    if citation_targets:
+        for res in citation_targets:
             source_type = CitationSourceType.WEBSITE if res.source_url else CitationSourceType.DOCUMENT
             citation = Citation(
                 message_id=ai_msg.id,

@@ -22,6 +22,16 @@ class Settings(BaseSettings):
     
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
+    
+    # Unified AI Platform Configs
+    ai_provider: str = "gemini"
+    ai_model: str = ""
+    ai_api_key: str = ""
+    ai_base_url: str = ""
+    ai_timeout: float = 30.0
+    ai_max_tokens: int = 2048
+    ai_temperature: float = 0.7
+    ai_stream: bool = False
 
     @property
     def cors_origin_list(self) -> list[str]:

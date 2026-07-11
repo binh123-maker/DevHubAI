@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.models.document import Document, DocumentChunk
 from app.models.workspace import Workspace
-from app.models.enums import ChatMode
+from app.models.enums import ChatMode, DocumentStatus
 from app.schemas.search import SearchResult
 
 
@@ -55,10 +55,12 @@ def search_documents(
             DocumentChunk.heading,
             Document.source_url,
             rank,
+            DocumentChunk.chunk_index,
         )
         .select_from(DocumentChunk)
         .join(Document, DocumentChunk.document_id == Document.id)
         .where(Document.user_id == user_id)  # Security enforcement
+        .where(Document.status == DocumentStatus.PROCESSED)  # Only search ready documents
         .where(DocumentChunk.search_vector.op("@@")(tsquery))
     )
 
@@ -94,6 +96,7 @@ def search_documents(
             heading=row["heading"],
             source_url=row["source_url"],
             relevance_score=float(row["relevance_score"]),
+            chunk_index=row["chunk_index"],
         )
         for row in results
     ]
