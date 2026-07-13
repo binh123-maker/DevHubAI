@@ -104,6 +104,7 @@ export function DocumentList({ workspaceId, folderId }: DocumentListProps) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["documents", workspaceId] })
       void queryClient.invalidateQueries({ queryKey: ["workspaces", workspaceId] })
+      void queryClient.invalidateQueries({ queryKey: ["dashboardData"] })
       setDocToDelete(null)
       setError(null)
     },
@@ -148,6 +149,7 @@ export function DocumentList({ workspaceId, folderId }: DocumentListProps) {
     onSuccess: (_data, ids) => {
       void queryClient.invalidateQueries({ queryKey: ["documents", workspaceId] })
       void queryClient.invalidateQueries({ queryKey: ["workspaces", workspaceId] })
+      void queryClient.invalidateQueries({ queryKey: ["dashboardData"] })
       setSelectedIds(new Set())
       setBulkDeleteOpen(false)
       setError(null)

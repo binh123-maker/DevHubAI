@@ -47,6 +47,7 @@ export default function WorkspaceDetailPage() {
     mutationFn: () => workspaceApi.delete(id!),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["workspaces"] })
+      void queryClient.invalidateQueries({ queryKey: ["dashboardData"] })
       navigate("/workspaces", { replace: true })
     },
     onError: (err) => setError(getApiErrorMessage(err, "Không thể xóa workspace.")),
@@ -144,7 +145,7 @@ export default function WorkspaceDetailPage() {
           </div>
         </CardContent>
       </Card>
-      
+
       {/* Folder List */}
       <FolderList
         workspaceId={workspace.id}
@@ -182,7 +183,9 @@ export default function WorkspaceDetailPage() {
         open={formOpen}
         onOpenChange={setFormOpen}
         workspace={workspace}
-        onSubmit={(payload) => updateMutation.mutateAsync(payload)}
+        onSubmit={async (payload) => {
+          await updateMutation.mutateAsync(payload)
+        }}
         isSubmitting={updateMutation.isPending}
       />
 
@@ -190,7 +193,9 @@ export default function WorkspaceDetailPage() {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         workspaceName={workspace.name}
-        onConfirm={() => deleteMutation.mutateAsync()}
+        onConfirm={async () => {
+          await deleteMutation.mutateAsync()
+        }}
         isDeleting={deleteMutation.isPending}
       />
     </div>

@@ -11,7 +11,13 @@ class PromptBuilder:
         "If the context contains enough information, provide the best and most accurate answer possible.\n"
         "If the context only partially answers the question, answer using the available information and explicitly state what details are missing.\n"
         "Only refuse to answer when absolutely no relevant context or information is present, in which case you must say exactly:\n"
-        "'Tài liệu hiện tại không chứa đủ thông tin để tôi trả lời câu hỏi này.'"
+        "'Tài liệu hiện tại không chứa đủ thông tin để tôi trả lời câu hỏi này.'\n\n"
+        "Format your response as clean, plain educational text. Follow these rendering rules strictly:\n"
+        "1. Do not expose reasoning and never output <think> blocks.\n"
+        "2. Normal educational text must be plain text. Do NOT use Markdown headings (#, ##, etc.), bold (**text**), italic (*text*), or Markdown tables (unless explicitly requested).\n"
+        "3. You are ONLY allowed to use Markdown for fenced code blocks (e.g. ```python ... ```) and inline code (e.g. `code`).\n"
+        "4. Output all mathematical formulas in LaTeX: enclose block equations in $$...$$ and inline formulas in $...$.\n"
+        "5. Preserve mathematical notations and Unicode symbols when appropriate. Keep answers concise and readable."
     )
 
     @classmethod

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { chatApi } from '@/api/chat.api';
 import { Chat, ChatMessage } from '@/types/chat.types';
@@ -15,11 +16,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import rehypeRaw from 'rehype-raw';
+import 'katex/dist/katex.min.css';
 
 export default function ChatHistoryPage() {
   const { chatId } = useParams();
   const navigate = useNavigate();
-
+  const queryClient = useQueryClient();
+  
   const [chats, setChats] = useState<Chat[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -177,6 +184,7 @@ export default function ChatHistoryPage() {
     if (window.confirm("Bạn có chắc muốn xóa cuộc trò chuyện này?")) {
       try {
         await chatApi.deleteChat(id);
+        void queryClient.invalidateQueries({ queryKey: ["dashboardData"] });
         if (chatId === id) {
           setMessages([]);
           setPendingScope(null);
@@ -370,7 +378,34 @@ export default function ChatHistoryPage() {
                         : 'bg-muted text-foreground rounded-bl-sm border'
                         }`}
                     >
-                      <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+                      {msg.role === 'assistant' ? (
+                        <ReactMarkdown
+                          remarkPlugins={[remarkMath]}
+                          rehypePlugins={[rehypeKatex, rehypeRaw]}
+                          className="prose dark:prose-invert max-w-none text-sm leading-relaxed"
+                          components={{
+                            p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                            code({ className, children, ...props }) {
+                              const match = /language-(\w+)/.exec(className || '');
+                              return match ? (
+                                <pre className="bg-accent/40 rounded-lg p-3 my-2 overflow-x-auto border border-accent">
+                                  <code className={`${className || ''} text-xs`} {...props}>
+                                    {children}
+                                  </code>
+                                </pre>
+                              ) : (
+                                <code className="bg-accent/40 px-1.5 py-0.5 rounded text-xs border border-accent/60 font-mono" {...props}>
+                                  {children}
+                                </code>
+                              );
+                            }
+                          }}
+                        >
+                          {msg.content}
+                        </ReactMarkdown>
+                      ) : (
+                        <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+                      )}
                     </div>
                     {msg.role === 'assistant' && msg.citations && msg.citations.length > 0 && (
                       <div className="max-w-[80%] w-full mt-2">

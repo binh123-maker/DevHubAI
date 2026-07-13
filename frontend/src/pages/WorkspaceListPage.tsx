@@ -53,6 +53,7 @@ export default function WorkspaceListPage() {
     mutationFn: (id: string) => workspaceApi.delete(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["workspaces"] })
+      void queryClient.invalidateQueries({ queryKey: ["dashboardData"] })
       setError(null)
     },
     onError: (err) => setError(getApiErrorMessage(err, "Không thể xóa workspace.")),

@@ -33,7 +33,7 @@ class Workspace(Base):
     user: Mapped["User"] = relationship(back_populates="workspaces")
     folders: Mapped[list["Folder"]] = relationship(back_populates="workspace", cascade="all, delete-orphan", passive_deletes=True)
     documents: Mapped[list["Document"]] = relationship(back_populates="workspace", cascade="all, delete-orphan", passive_deletes=True)
-    chats: Mapped[list["Chat"]] = relationship(back_populates="workspace", passive_deletes=True)
+    chats: Mapped[list["Chat"]] = relationship(back_populates="workspace", cascade="all, delete-orphan", passive_deletes=True)
 
     @property
     def document_count(self) -> int:

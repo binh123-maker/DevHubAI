@@ -10,6 +10,7 @@ from app.services.ai.metrics.collector import MetricsCollector
 from app.services.ai.models.prompt import ChatRequest, PromptPackage
 from app.services.ai.models.response import UnifiedResponse, ChatMessage
 from app.services.ai.exceptions import AIError, TimeoutError, RateLimitError
+from app.services.ai.utils.response_formatter import ResponseFormatter
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +76,8 @@ class AIOrchestrator:
             
             latency = (time.time() - start_time) * 1000
             response.latency_ms = latency
+            if response.content:
+                response.content = ResponseFormatter.sanitize(response.content)
             
             # Record metrics
             input_tokens = response.usage.input_tokens if response.usage else 0
@@ -136,7 +139,8 @@ class AIOrchestrator:
                 return provider.generate_stream(request)
 
             stream_gen = _circuit_breaker.call(_call_stream)
-            for chunk in stream_gen:
+            sanitized_stream = ResponseFormatter.sanitize_stream(stream_gen)
+            for chunk in sanitized_stream:
                 yield chunk
                 
             latency = (time.time() - start_time) * 1000
