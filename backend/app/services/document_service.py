@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.models.document import Document, DocumentChunk
+from app.models.document import Document, DocumentChunk, DocumentStructureNode, UrlResource
 from app.models.enums import DocumentStatus
 from app.services.folder_service import get_owned_folder
 from app.services.workspace_service import get_owned_workspace
@@ -74,6 +74,15 @@ def list_documents(db: Session, user_id: UUID, workspace_id: UUID, folder_id: UU
     return list(db.scalars(query.order_by(Document.created_at.desc())))
 
 
+def calculate_sha256(file_path: Path) -> str:
+    import hashlib
+    sha256_hash = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
+    return sha256_hash.hexdigest()
+
+
 def upload_document(
     db: Session,
     user_id: UUID,
@@ -93,27 +102,49 @@ def upload_document(
     # 2. Validate file type
     validate_file(file)
 
-    # 3. Create unique file path
+    # 3. Create unique file path for temporary saving
     file_id = uuid.uuid4()
     ext = Path(file.filename or "").suffix.lower()
-    saved_filename = f"{file_id}{ext}"
+    temp_filename = f"temp_{file_id}{ext}"
     workspace_dir = UPLOAD_DIR / str(workspace_id)
     workspace_dir.mkdir(parents=True, exist_ok=True)
-    file_path = workspace_dir / saved_filename
+    temp_file_path = workspace_dir / temp_filename
 
     # 4. Save file and get size
     file_size = 0
     try:
-        with open(file_path, "wb") as buffer:
+        with open(temp_file_path, "wb") as buffer:
             while chunk := file.file.read(8192):
                 file_size += len(chunk)
                 if file_size > MAX_FILE_SIZE:
                     raise DocumentError(f"File too large. Maximum size is {MAX_FILE_SIZE / (1024 * 1024):.0f}MB", status_code=413)
                 buffer.write(chunk)
 
-        # 5. Save to database
+        # Compute SHA-256
+        sha256 = calculate_sha256(temp_file_path)
+
+        # 5. Check duplicate DocumentBinary (CAS)
+        from app.models.document import DocumentBinary, DocumentVersion, ProcessingJob
+        binary = db.scalar(select(DocumentBinary).where(DocumentBinary.sha256 == sha256))
+        if binary:
+            # Duplicate binary found, delete temp file and reuse path
+            temp_file_path.unlink(missing_ok=True)
+        else:
+            # Unique content, rename temp file to permanent CAS path
+            cas_filename = f"{sha256}{ext}"
+            final_file_path = workspace_dir / cas_filename
+            temp_file_path.rename(final_file_path)
+            binary = DocumentBinary(
+                sha256=sha256,
+                file_path=str(final_file_path),
+                file_type=ext.lstrip("."),
+                file_size=file_size,
+            )
+            db.add(binary)
+            db.commit()
+
+        # 6. Save logical Document
         doc_title = title.strip() if title else (file.filename or "Untitled")
-        
         document = Document(
             id=file_id,
             user_id=user_id,
@@ -124,24 +155,46 @@ def upload_document(
             file_name=file.filename or "unknown",
             file_type=ext.lstrip("."),
             file_size=file_size,
-            file_path=str(file_path),
+            file_path=binary.file_path,
             status=DocumentStatus.UPLOADING,
         )
-
         db.add(document)
         db.commit()
         db.refresh(document)
 
+        # 7. Save DocumentVersion
+        version = DocumentVersion(
+            document_id=document.id,
+            version_number=1,
+            binary_id=binary.sha256,
+            status=DocumentStatus.UPLOADING,
+        )
+        db.add(version)
+        db.commit()
+        db.refresh(version)
+
+        # 8. Save ProcessingJob
+        job = ProcessingJob(
+            document_version_id=version.id,
+            job_type="upload_processing",
+            status="pending",
+            priority=1,
+            progress=0,
+        )
+        db.add(job)
+        db.commit()
+
         return document
     except Exception as e:
-        file_path.unlink(missing_ok=True)
+        if temp_file_path.exists():
+            temp_file_path.unlink(missing_ok=True)
         raise e
 
 
-def trigger_processing_task(document_id: UUID) -> None:
-    """Run the document processing pipeline synchronously (called from BackgroundTask)."""
+def trigger_job_processing(job_id: UUID) -> None:
+    """Run the processing job synchronously (called from BackgroundTask)."""
     from app.db.session import SessionLocal
-    from app.services.processing_service import process_document
+    from app.services.processing_service import execute_processing_job
 
     # Reuse testing session if running in a test client environment to see uncommitted data
     from app.main import app
@@ -151,6 +204,43 @@ def trigger_processing_task(document_id: UUID) -> None:
     else:
         db = SessionLocal()
     try:
+        execute_processing_job(db, job_id)
+    except Exception as exc:
+        logger.exception("Failed to execute processing job %s: %s", job_id, exc)
+    finally:
+        db.close()
+
+
+def trigger_processing_task(document_id: UUID) -> None:
+    """Run the document processing pipeline synchronously (called from BackgroundTask)."""
+    from app.db.session import SessionLocal
+    from app.models.document import DocumentVersion, ProcessingJob
+
+    # Reuse testing session if running in a test client environment to see uncommitted data
+    from app.main import app
+    from app.db.session import get_db
+    if app.dependency_overrides.get(get_db):
+        db = next(app.dependency_overrides[get_db]())
+    else:
+        db = SessionLocal()
+    try:
+        # Find the latest pending job for this document
+        version = db.scalar(
+            select(DocumentVersion)
+            .where(DocumentVersion.document_id == document_id)
+            .order_by(DocumentVersion.version_number.desc())
+        )
+        if version:
+            job = db.scalar(
+                select(ProcessingJob)
+                .where(ProcessingJob.document_version_id == version.id, ProcessingJob.status == "pending")
+            )
+            if job:
+                trigger_job_processing(job.id)
+                return
+
+        # Fallback to legacy processing if no version exists
+        from app.services.processing_service import process_document
         document = db.scalar(select(Document).where(Document.id == document_id))
         if document:
             process_document(db, document)
@@ -163,6 +253,7 @@ def trigger_processing_task(document_id: UUID) -> None:
             db.commit()
     finally:
         db.close()
+
 
 
 def get_document_chunks(db: Session, user_id: UUID, document_id: UUID) -> list[DocumentChunk]:
@@ -426,7 +517,7 @@ def download_and_process_url(document_id: UUID, url: str) -> None:
     from urllib.parse import urlparse
     from email.message import EmailMessage
     from app.db.session import SessionLocal
-    from app.services.processing_service import process_document
+    from app.models.document import DocumentBinary, DocumentVersion, ProcessingJob
 
     # Reuse testing session if running in a test client environment to see uncommitted data
     from app.main import app
@@ -435,7 +526,7 @@ def download_and_process_url(document_id: UUID, url: str) -> None:
         db = next(app.dependency_overrides[get_db]())
     else:
         db = SessionLocal()
-    file_path = None
+    temp_file_path = None
     try:
         # Fetch document
         document = db.scalar(select(Document).where(Document.id == document_id))
@@ -448,12 +539,11 @@ def download_and_process_url(document_id: UUID, url: str) -> None:
 
                 ct = response.headers.get("content-type", "")
 
-                # Fix #1: pre-initialize all variables consumed after the if/else
-                # block so they are always bound regardless of which branch runs.
                 filename: str = "url_download"
                 ext: str = ""
                 size: int = 0
                 
+                url_resource_id = None
                 if "text/html" in ct.lower():
                     response.read()
                     html_content = response.text
@@ -474,15 +564,31 @@ def download_and_process_url(document_id: UUID, url: str) -> None:
                     
                     workspace_dir = UPLOAD_DIR / str(document.workspace_id)
                     workspace_dir.mkdir(parents=True, exist_ok=True)
-                    file_path = workspace_dir / f"{document.id}{ext}"
+                    temp_file_path = workspace_dir / f"temp_url_{document.id}{ext}"
                     
-                    with open(file_path, "wb") as f:
+                    with open(temp_file_path, "wb") as f:
                         f.write(content_bytes)
                         
                     if page_title and (document.title == url or not document.title):
                         document.title = page_title
                     if page_desc and not document.description:
                         document.description = page_desc
+                        
+                    # Save UrlResource
+                    from app.models.document import UrlResource
+                    url_res = db.scalar(select(UrlResource).where(UrlResource.original_url == url))
+                    if not url_res:
+                        url_res = UrlResource(
+                            original_url=url,
+                            fetched_html=html_content,
+                            parsed_markdown=md_text,
+                            title=page_title,
+                            description=page_desc,
+                        )
+                        db.add(url_res)
+                        db.commit()
+                        db.refresh(url_res)
+                    url_resource_id = url_res.id
                         
                 else:
                     # Determine filename
@@ -514,32 +620,78 @@ def download_and_process_url(document_id: UUID, url: str) -> None:
                     # Setup path
                     workspace_dir = UPLOAD_DIR / str(document.workspace_id)
                     workspace_dir.mkdir(parents=True, exist_ok=True)
-                    file_path = workspace_dir / f"{document.id}{ext}"
+                    temp_file_path = workspace_dir / f"temp_url_{document.id}{ext}"
 
                     size = 0
-                    with open(file_path, "wb") as f:
+                    with open(temp_file_path, "wb") as f:
                         for chunk in response.iter_bytes(chunk_size=8192):
                             size += len(chunk)
                             if size > MAX_FILE_SIZE:
                                 raise ValueError(f"File too large. Max size is {MAX_FILE_SIZE / (1024 * 1024):.0f}MB")
                             f.write(chunk)
 
-        # Update document
+        # Compute SHA-256
+        sha256 = calculate_sha256(temp_file_path)
+
+        # Check duplicate DocumentBinary (CAS)
+        binary = db.scalar(select(DocumentBinary).where(DocumentBinary.sha256 == sha256))
+        if binary:
+            # Duplicate binary found, delete temp file and reuse path
+            temp_file_path.unlink(missing_ok=True)
+        else:
+            # Unique content, rename temp file to permanent CAS path
+            cas_filename = f"{sha256}{ext}"
+            final_file_path = workspace_dir / cas_filename
+            temp_file_path.rename(final_file_path)
+            binary = DocumentBinary(
+                sha256=sha256,
+                file_path=str(final_file_path),
+                file_type=ext.lstrip("."),
+                file_size=size,
+            )
+            db.add(binary)
+            db.commit()
+
+        # Update document columns
         document.file_name = filename
         document.file_type = ext.lstrip(".")
         document.file_size = size
-        document.file_path = str(file_path)
+        document.file_path = binary.file_path
+        document.status = DocumentStatus.UPLOADING
         db.commit()
 
-        # Trigger processing
-        process_document(db, document)
+        # Create DocumentVersion
+        version = DocumentVersion(
+            document_id=document.id,
+            version_number=1,
+            binary_id=binary.sha256,
+            url_resource_id=url_resource_id,
+            status=DocumentStatus.UPLOADING,
+        )
+        db.add(version)
+        db.commit()
+        db.refresh(version)
+
+        # Create ProcessingJob
+        job = ProcessingJob(
+            document_version_id=version.id,
+            job_type="url_processing",
+            status="pending",
+            priority=1,
+            progress=0,
+        )
+        db.add(job)
+        db.commit()
+
+        # Trigger processing job
+        trigger_job_processing(job.id)
 
     except Exception as exc:
         logger.exception("Failed to download URL %s for document %s: %s", url, document_id, exc)
         db.rollback()
         
-        if file_path and file_path.exists():
-            file_path.unlink(missing_ok=True)
+        if temp_file_path and temp_file_path.exists():
+            temp_file_path.unlink(missing_ok=True)
             
         doc = db.scalar(select(Document).where(Document.id == document_id))
         if doc:
@@ -551,4 +703,46 @@ def download_and_process_url(document_id: UUID, url: str) -> None:
             db.commit()
     finally:
         db.close()
+
+
+def get_document_structure(db: Session, user_id: UUID, document_id: UUID) -> list[DocumentStructureNode]:
+    # 1. Verify ownership
+    document = get_owned_document(db, user_id, document_id)
+    
+    # 2. Find latest version
+    from app.models.document import DocumentVersion, DocumentStructureNode
+    version = db.scalar(
+        select(DocumentVersion)
+        .where(DocumentVersion.document_id == document.id)
+        .order_by(DocumentVersion.version_number.desc())
+    )
+    if not version:
+        return []
+        
+    # 3. Retrieve structure nodes
+    query = (
+        select(DocumentStructureNode)
+        .where(DocumentStructureNode.document_version_id == version.id)
+        .order_by(DocumentStructureNode.order_index.asc())
+    )
+    return list(db.scalars(query))
+
+
+def get_url_resource(db: Session, user_id: UUID, document_id: UUID) -> UrlResource | None:
+    # 1. Verify ownership
+    document = get_owned_document(db, user_id, document_id)
+    
+    # 2. Find latest version
+    from app.models.document import DocumentVersion, UrlResource
+    version = db.scalar(
+        select(DocumentVersion)
+        .where(DocumentVersion.document_id == document.id)
+        .order_by(DocumentVersion.version_number.desc())
+    )
+    if not version or not version.url_resource_id:
+        return None
+        
+    return db.scalar(select(UrlResource).where(UrlResource.id == version.url_resource_id))
+
+
 

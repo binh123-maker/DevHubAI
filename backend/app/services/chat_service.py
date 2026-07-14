@@ -136,69 +136,15 @@ def _are_passages_similar(p1: str, p2: str) -> bool:
     return difflib.SequenceMatcher(None, p1.lower(), p2.lower()).ratio() > 0.90
 
 
-def _build_grounded_context(search_results: list, query: str) -> tuple[str, list]:
-    doc_groups = defaultdict(list)
-    for res in search_results:
-        doc_groups[res.document_id].append(res)
-        
-    merged_docs = []
-    citation_targets = []
+def _build_grounded_context(db: Session, search_results: list, query: str) -> tuple[str, list]:
+    from app.services.context_builder import ContextBuilder
+    builder = ContextBuilder()
+    context_str, mapping = builder.build_context(db, search_results)
     
-    for doc_id, res_list in doc_groups.items():
-        res_list.sort(key=lambda x: x.chunk_index if x.chunk_index is not None else 0)
-        
-        doc_passages = []
-        max_score = -1.0
-        doc_name = res_list[0].document_name
-        source_url = res_list[0].source_url
-        
-        for res in res_list:
-            if _is_noisy_chunk(res.content):
-                continue
-                
-            cleaned = _clean_text(res.content)
-            passages = _extract_relevant_passages(cleaned, query)
-            
-            for p in passages:
-                # Deduplication logic (90% similarity threshold)
-                is_duplicate = False
-                for existing in doc_passages:
-                    if _are_passages_similar(p["text"], existing["text"]):
-                        is_duplicate = True
-                        break
-                if not is_duplicate:
-                    doc_passages.append(p)
-                    # Print debug log for selected passage
-                    logger.info(
-                        "[CONTEXT BUILDER DEBUG] Original chunk ID: %s | Extracted length: %d | Reason: %s | Matched keywords: %s",
-                        str(res.chunk_id),
-                        len(p["text"]),
-                        p["reason"],
-                        ", ".join(p["matched_keywords"])
-                    )
-            
-            if res.relevance_score > max_score:
-                max_score = res.relevance_score
-                
-            citation_targets.append(res)
-            
-        if doc_passages:
-            merged_docs.append({
-                "document_name": doc_name,
-                "max_score": max_score,
-                "passages": [p["text"] for p in doc_passages]
-            })
-            
-    merged_docs.sort(key=lambda x: x["max_score"], reverse=True)
-    
-    doc_parts = []
-    for md in merged_docs:
-        doc_header = f"[Document: {md['document_name']}]"
-        passages_joined = "\n\n---\n\n".join(md["passages"])
-        doc_parts.append(f"{doc_header}\n{passages_joined}")
-        
-    context_text = "\n\n--------------------------------\n\n".join(doc_parts)
-    return context_text, citation_targets
+    # Map back to expected structure by the caller: list of search result elements that were selected.
+    selected_chunk_ids = {m["chunk_id"] for m in mapping}
+    citation_targets = [res for res in search_results if res.chunk_id in selected_chunk_ids]
+    return context_str, citation_targets
 
 
 class ChatError(Exception):
@@ -391,7 +337,7 @@ def send_message(db: Session, user_id: UUID, chat_id: UUID, msg_in: ChatMessageC
     retrieved_chunk_count = len(search_results)
 
     # 3. Build Prompt and Call AI
-    context_text, citation_targets = _build_grounded_context(search_results, rewritten)
+    context_text, citation_targets = _build_grounded_context(db, search_results, rewritten)
     
     if not context_text and chat.chat_mode != ChatMode.GLOBAL:
         ai_content = "Tôi không tìm thấy tài liệu nào trong workspace hiện tại có chứa thông tin để trả lời câu hỏi của bạn. Vui lòng tải lên tài liệu liên quan hoặc điều chỉnh lại câu hỏi."

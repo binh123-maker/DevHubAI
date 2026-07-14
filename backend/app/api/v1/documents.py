@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import CurrentUser
 from app.db.session import get_db
 from app.schemas.common import MessageResponse
-from app.schemas.document import BulkDeleteRequest, ChunkResponse, DocumentResponse, DocumentUpdateRequest, UrlUploadRequest
+from app.schemas.document import BulkDeleteRequest, ChunkResponse, DocumentResponse, DocumentUpdateRequest, UrlUploadRequest, DocumentStructureNodeResponse, UrlResourceResponse
 from app.services import document_service
 
 router = APIRouter()
@@ -128,6 +128,35 @@ def get_document_chunks(
     """Return all text chunks extracted from this document."""
     try:
         return document_service.get_document_chunks(db, current_user.id, document_id)
+    except document_service.DocumentError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
+
+@router.get("/{document_id}/structure", response_model=list[DocumentStructureNodeResponse])
+def get_document_structure(
+    document_id: UUID,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> list[DocumentStructureNodeResponse]:
+    """Return all structural tree nodes parsed from the latest version of this document."""
+    try:
+        return document_service.get_document_structure(db, current_user.id, document_id)
+    except document_service.DocumentError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
+
+@router.get("/{document_id}/url-resource", response_model=UrlResourceResponse)
+def get_url_resource(
+    document_id: UUID,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> UrlResourceResponse:
+    """Return URL Resource parsed details (HTML, markdown, title, description) for this webpage document."""
+    try:
+        url_res = document_service.get_url_resource(db, current_user.id, document_id)
+        if not url_res:
+            raise HTTPException(status_code=404, detail="URL Resource details not found for this document")
+        return url_res
     except document_service.DocumentError as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
 
