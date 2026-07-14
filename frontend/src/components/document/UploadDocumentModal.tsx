@@ -37,6 +37,8 @@ interface UploadItem {
   abortController?: AbortController
 }
 
+const MAX_SIZE_MB = parseInt(import.meta.env.VITE_MAX_UPLOAD_SIZE_MB || "100", 10)
+
 export function UploadDocumentModal({ open, onOpenChange, workspaceId, folderId }: UploadDocumentModalProps) {
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<"file" | "url">("file")
@@ -49,12 +51,19 @@ export function UploadDocumentModal({ open, onOpenChange, workspaceId, folderId 
     queueRef.current = queue
   }, [queue])
 
+  // -- Drag State --
+  useEffect(() => {
+    if (!open) {
+      setQueue([])
+      setIsDragging(false)
+      setIsProcessing(false)
+    }
+  }, [open])
+
   // URL Tab State
   const [urlInput, setUrlInput] = useState("")
   const [urlTitle, setUrlTitle] = useState("")
   const [urlDesc, setUrlDesc] = useState("")
-
-  const MAX_SIZE_MB = parseInt(import.meta.env.VITE_MAX_UPLOAD_SIZE_MB || "100", 10)
 
   // -- File Handlers --
 
@@ -68,15 +77,7 @@ export function UploadDocumentModal({ open, onOpenChange, workspaceId, folderId 
     setIsDragging(false)
   }, [])
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFileSelect(e.dataTransfer.files)
-    }
-  }, [])
-
-  const handleFileSelect = (selectedFiles: FileList) => {
+  const handleFileSelect = useCallback((selectedFiles: FileList) => {
     const validExtensions = [".pdf", ".docx", ".txt", ".md"]
     const newItems: UploadItem[] = []
 
@@ -98,7 +99,15 @@ export function UploadDocumentModal({ open, onOpenChange, workspaceId, folderId 
     if (newItems.length > 0) {
       setQueue((prev) => [...prev, ...newItems])
     }
-  }
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFileSelect(e.dataTransfer.files)
+    }
+  }, [handleFileSelect])
 
   // -- URL Handlers --
   const handleAddUrl = () => {

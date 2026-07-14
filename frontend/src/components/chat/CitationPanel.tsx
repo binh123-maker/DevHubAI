@@ -6,10 +6,9 @@ interface CitationPanelProps {
 }
 
 export const CitationPanel: React.FC<CitationPanelProps> = ({ citations }) => {
-  if (!citations || citations.length === 0) return null;
-
   // Group by document name to display each unique source document only once
   const uniqueCitations = React.useMemo(() => {
+    if (!citations) return [];
     const seen = new Set<string>();
     const result: Citation[] = [];
     for (const c of citations) {
@@ -21,6 +20,8 @@ export const CitationPanel: React.FC<CitationPanelProps> = ({ citations }) => {
     }
     return result;
   }, [citations]);
+
+  if (!citations || uniqueCitations.length === 0) return null;
 
   // Truncate filenames exceeding 24 characters with an ellipsis
   const truncateFilename = (filename: string, maxLen = 24): string => {

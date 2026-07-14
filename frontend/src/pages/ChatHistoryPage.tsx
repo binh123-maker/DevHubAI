@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
@@ -38,48 +38,40 @@ export default function ChatHistoryPage() {
   const [pendingScope, setPendingScope] = useState<ScopeSelection | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef(messages);
+  const isCreatingChatRef = useRef(isCreatingChat);
 
   useEffect(() => {
-    loadChats();
-  }, []);
+    messagesRef.current = messages;
+  }, [messages]);
 
   useEffect(() => {
-    console.debug('[LOG 7] useEffect(chatId) triggered', { timestamp: new Date().toISOString(), chatId, messagesLength: messages.length, isCreatingChat });
-    if (chatId) {
-      setPendingScope(null);
-      loadMessages(chatId);
-    } else {
-      setMessages([]);
-    }
-  }, [chatId]);
+    isCreatingChatRef.current = isCreatingChat;
+  }, [isCreatingChat]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading]);
-
-  const loadChats = async () => {
+  const loadChats = useCallback(async () => {
     try {
       const data = await chatApi.getChats();
       setChats(data);
     } catch (e) {
       console.error(e);
     }
-  };
+  }, []);
 
-  const loadMessages = async (id: string) => {
-    console.debug('[LOG 8] loadMessages start', { timestamp: new Date().toISOString(), chatId, messagesLength: messages.length, isCreatingChat, targetId: id });
+  const loadMessages = useCallback(async (id: string) => {
+    console.debug('[LOG 8] loadMessages start', { timestamp: new Date().toISOString(), chatId, messagesLength: messagesRef.current.length, isCreatingChat: isCreatingChatRef.current, targetId: id });
     // Prevent loading from backend if we are in the middle of creating/sending the first message
-    if (isCreatingChat) return;
+    if (isCreatingChatRef.current) return;
 
     // Avoid duplicate calls if messages are already loaded for this chat
-    if (messages.length > 0 && messages[0]?.chat_id === id) return;
+    if (messagesRef.current.length > 0 && messagesRef.current[0]?.chat_id === id) return;
 
     try {
       setIsRestoring(true);
-      console.debug('[LOG 9] GET /messages request', { timestamp: new Date().toISOString(), chatId, messagesLength: messages.length, isCreatingChat });
+      console.debug('[LOG 9] GET /messages request', { timestamp: new Date().toISOString(), chatId, messagesLength: messagesRef.current.length, isCreatingChat: isCreatingChatRef.current });
       const data = await chatApi.getChatMessages(id);
-      console.debug('[LOG 10] GET /messages response received', { timestamp: new Date().toISOString(), chatId, messagesLength: messages.length, isCreatingChat, responseLength: data.length });
-      console.debug('[LOG 11] setMessages(data) call', { timestamp: new Date().toISOString(), chatId, messagesLength: messages.length, isCreatingChat });
+      console.debug('[LOG 10] GET /messages response received', { timestamp: new Date().toISOString(), chatId, messagesLength: messagesRef.current.length, isCreatingChat: isCreatingChatRef.current, responseLength: data.length });
+      console.debug('[LOG 11] setMessages(data) call', { timestamp: new Date().toISOString(), chatId, messagesLength: messagesRef.current.length, isCreatingChat: isCreatingChatRef.current });
       setMessages(data);
     } catch (e: any) {
       console.error(e);
@@ -89,7 +81,25 @@ export default function ChatHistoryPage() {
     } finally {
       setIsRestoring(false);
     }
-  };
+  }, [chatId, navigate]);
+
+  useEffect(() => {
+    loadChats();
+  }, [loadChats]);
+
+  useEffect(() => {
+    console.debug('[LOG 7] useEffect(chatId) triggered', { timestamp: new Date().toISOString(), chatId, messagesLength: messagesRef.current.length, isCreatingChat: isCreatingChatRef.current });
+    if (chatId) {
+      setPendingScope(null);
+      loadMessages(chatId);
+    } else {
+      setMessages([]);
+    }
+  }, [chatId, loadMessages]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isLoading]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
