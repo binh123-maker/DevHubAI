@@ -34,7 +34,7 @@ def test_heading_hierarchy_repair_and_metadata():
         
         # Heading 4 (order 4) - Repaired to level 3
         h4 = nodes[4]
-        assert h4["node_type"] == NodeType.HEADING_3.value
+        assert h4["node_type"] == NodeType.HEADING_4.value
         assert h4["hierarchy_level"] == 3
         assert h4["parent_id"] == h2["id"]
         

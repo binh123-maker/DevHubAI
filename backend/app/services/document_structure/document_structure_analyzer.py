@@ -120,11 +120,8 @@ def _analyze_markdown(builder: DocumentTreeBuilder, content: str):
         if line.startswith("#"):
             level = len(line) - len(line.lstrip("#"))
             text = line.lstrip("#").strip()
-            node_type = NodeType.HEADING_1
-            if level == 2:
-                node_type = NodeType.HEADING_2
-            elif level >= 3:
-                node_type = NodeType.HEADING_3
+            node_type_attr = f"HEADING_{min(level, 6)}"
+            node_type = getattr(NodeType, node_type_attr, NodeType.HEADING_1)
             builder.add_node(
                 node_type=node_type,
                 node_category="heading",
@@ -136,7 +133,8 @@ def _analyze_markdown(builder: DocumentTreeBuilder, content: str):
                 char_end=char_offset + len(lines[i]),
                 line_start=line_no,
                 line_end=line_no,
-                hierarchy_level=level
+                hierarchy_level=level,
+                metadata_json={"heading_level": level}
             )
             char_offset += len(lines[i]) + 1
             line_no += 1
@@ -206,34 +204,76 @@ def _analyze_pdf(builder: DocumentTreeBuilder, file_path: Path):
     doc = fitz.open(str(file_path))
     char_offset = 0
     
+    # 1. First pass to find the average/most frequent font size (body text size)
+    sizes = []
+    for page in doc:
+        text_dict = page.get_text("dict")
+        for block in text_dict.get("blocks", []):
+            if block.get("type") == 0:
+                for line in block.get("lines", []):
+                    for span in line.get("spans", []):
+                        if span.get("text", "").strip():
+                            sizes.append(span.get("size", 10.0))
+                            
+    body_size = 10.0
+    if sizes:
+        from collections import Counter
+        body_size = Counter(sizes).most_common(1)[0][0]
+        
+    # 2. Second pass to extract blocks with structural analysis
     for page_num, page in enumerate(doc, start=1):
-        blocks = page.get_text("blocks")
+        text_dict = page.get_text("dict")
         line_no = 1
-        for block in blocks:
-            text = block[4].strip()
-            if not text:
+        for block in text_dict.get("blocks", []):
+            if block.get("type") != 0:
                 continue
-
+                
+            block_text = ""
+            max_size = 0.0
+            is_bold = False
+            for line in block.get("lines", []):
+                for span in line.get("spans", []):
+                    block_text += span.get("text", "")
+                    max_size = max(max_size, span.get("size", 0.0))
+                    font_name = span.get("font", "").lower()
+                    if "bold" in font_name or "black" in font_name or "heavy" in font_name:
+                        is_bold = True
+            
+            block_text = block_text.strip()
+            if not block_text:
+                continue
+                
             node_type = NodeType.PARAGRAPH
-            # Crude header check
-            if len(text) < 100 and (text.startswith("Chapter") or text.startswith("Section") or text.isupper()):
-                node_type = NodeType.HEADING_1
-
+            level = 0
+            
+            # Heading heuristics based on font size, bold, spacing
+            if len(block_text) < 200:
+                if max_size > body_size * 1.5:
+                    node_type = NodeType.HEADING_1
+                    level = 1
+                elif max_size > body_size * 1.25:
+                    node_type = NodeType.HEADING_2
+                    level = 2
+                elif max_size > body_size * 1.1 or (is_bold and max_size >= body_size):
+                    node_type = NodeType.HEADING_3
+                    level = 3
+                    
             builder.add_node(
                 node_type=node_type,
-                node_category="content",
-                content_text=text,
-                content_markdown=text,
+                node_category="heading" if level > 0 else "text",
+                content_text=block_text,
+                content_markdown=block_text,
                 page_start=page_num,
                 page_end=page_num,
                 char_start=char_offset,
-                char_end=char_offset + len(text),
+                char_end=char_offset + len(block_text),
                 line_start=line_no,
-                line_end=line_no + text.count("\n"),
-                hierarchy_level=1 if node_type == NodeType.HEADING_1 else 0
+                line_end=line_no + block_text.count("\n"),
+                hierarchy_level=level,
+                metadata_json={"heading_level": level} if level > 0 else {}
             )
-            char_offset += len(text) + 1
-            line_no += text.count("\n") + 1
+            char_offset += len(block_text) + 1
+            line_no += block_text.count("\n") + 1
     doc.close()
 
 
@@ -260,12 +300,21 @@ def _analyze_docx(builder: DocumentTreeBuilder, file_path: Path):
             elif "heading 3" in style_name:
                 node_type = NodeType.HEADING_3
                 level = 3
+            elif "heading 4" in style_name:
+                node_type = NodeType.HEADING_4
+                level = 4
+            elif "heading 5" in style_name:
+                node_type = NodeType.HEADING_5
+                level = 5
+            elif "heading 6" in style_name:
+                node_type = NodeType.HEADING_6
+                level = 6
             elif "list" in style_name:
                 node_type = NodeType.BULLET_LIST
 
             builder.add_node(
                 node_type=node_type,
-                node_category="content",
+                node_category="heading" if level > 0 else "content",
                 content_text=text,
                 content_markdown=text,
                 page_start=1,
@@ -274,7 +323,8 @@ def _analyze_docx(builder: DocumentTreeBuilder, file_path: Path):
                 char_end=char_offset + len(text),
                 line_start=line_no,
                 line_end=line_no,
-                hierarchy_level=level
+                hierarchy_level=level,
+                metadata_json={"heading_level": level} if level > 0 else {}
             )
             char_offset += len(text) + 1
             line_no += 1
@@ -330,7 +380,7 @@ def _analyze_html(builder: DocumentTreeBuilder, content: str):
     line_no = 1
 
     # Extract logical structure from elements
-    for el in soup.find_all(["h1", "h2", "h3", "p", "pre", "ul", "ol", "table"]):
+    for el in soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6", "p", "pre", "ul", "ol", "table"]):
         text = el.get_text().strip()
         if not text:
             continue
@@ -338,15 +388,10 @@ def _analyze_html(builder: DocumentTreeBuilder, content: str):
         node_type = NodeType.PARAGRAPH
         level = 0
 
-        if el.name == "h1":
-            node_type = NodeType.HEADING_1
-            level = 1
-        elif el.name == "h2":
-            node_type = NodeType.HEADING_2
-            level = 2
-        elif el.name == "h3":
-            node_type = NodeType.HEADING_3
-            level = 3
+        if el.name in ("h1", "h2", "h3", "h4", "h5", "h6"):
+            level = int(el.name[1])
+            node_type_attr = f"HEADING_{level}"
+            node_type = getattr(NodeType, node_type_attr, NodeType.HEADING_1)
         elif el.name in ("ul", "ol"):
             node_type = NodeType.BULLET_LIST if el.name == "ul" else NodeType.NUMBERED_LIST
         elif el.name == "pre":
@@ -365,7 +410,8 @@ def _analyze_html(builder: DocumentTreeBuilder, content: str):
             char_end=char_offset + len(text),
             line_start=line_no,
             line_end=line_no + text.count("\n"),
-            hierarchy_level=level
+            hierarchy_level=level,
+            metadata_json={"heading_level": level} if level > 0 else {}
         )
         char_offset += len(text) + 1
         line_no += text.count("\n") + 1

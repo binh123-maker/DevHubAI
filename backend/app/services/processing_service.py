@@ -256,12 +256,33 @@ def execute_processing_job(db: Session, job_id: UUID) -> None:
         
         # Delete old structure nodes if they exist
         db.query(DocumentStructureNode).filter(DocumentStructureNode.document_version_id == version.id).delete()
-        nodes = parse_structure(version.id, extracted)
         
-        # Populate rich metadata on structure nodes
-        for node in nodes:
-            is_code = (node.node_category == "code")
-            node.metadata_json = build_metadata(node.content_text, is_code, node.language)
+        from app.services.document_structure.document_structure_analyzer import analyze_document_structure
+        node_dicts = analyze_document_structure(version.id, file_path, binary.file_type)
+        
+        nodes = []
+        for d in node_dicts:
+            nodes.append(
+                DocumentStructureNode(
+                    id=d["id"],
+                    document_version_id=d["document_version_id"],
+                    node_category=d["node_category"],
+                    node_type=d["node_type"],
+                    parent_id=d["parent_id"],
+                    order_index=d["order_index"],
+                    hierarchy_level=d["hierarchy_level"],
+                    page_start=d["page_start"],
+                    page_end=d["page_end"],
+                    char_start=d["char_start"],
+                    char_end=d["char_end"],
+                    line_start=d["line_start"],
+                    line_end=d["line_end"],
+                    language=d["language"],
+                    content_text=d["content_text"],
+                    content_markdown=d["content_markdown"],
+                    metadata_json=d["metadata_json"]
+                )
+            )
             
         db_session = Session.object_session(job) if hasattr(Session, 'object_session') else db
         db_session.add_all(nodes)

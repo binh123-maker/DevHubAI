@@ -30,8 +30,11 @@ class DocumentTreeBuilder:
         
         # Determine parent
         parent_id = None
-        if node_type in (NodeType.HEADING_1, NodeType.HEADING_2, NodeType.HEADING_3):
-            level = hierarchy_level or (1 if node_type == NodeType.HEADING_1 else 2 if node_type == NodeType.HEADING_2 else 3)
+        if node_type in (NodeType.HEADING_1, NodeType.HEADING_2, NodeType.HEADING_3, NodeType.HEADING_4, NodeType.HEADING_5, NodeType.HEADING_6):
+            try:
+                level = hierarchy_level or int(node_type.value.split("_")[1])
+            except Exception:
+                level = hierarchy_level or 1
             
             # Auto-repair skipped heading levels: find the closest active heading
             # that has a level strictly less than 'level'
@@ -106,7 +109,14 @@ class DocumentTreeBuilder:
                 node_by_id[child_id]["metadata_json"]["sibling_index"] = idx
                 
         # 2. Compute section boundaries for heading nodes
-        heading_types = (NodeType.HEADING_1.value, NodeType.HEADING_2.value, NodeType.HEADING_3.value)
+        heading_types = (
+            NodeType.HEADING_1.value,
+            NodeType.HEADING_2.value,
+            NodeType.HEADING_3.value,
+            NodeType.HEADING_4.value,
+            NodeType.HEADING_5.value,
+            NodeType.HEADING_6.value
+        )
         
         for i, node in enumerate(self.nodes):
             if node["node_type"] in heading_types:
@@ -175,6 +185,7 @@ class DocumentTreeBuilder:
 
         # 4. Compute structure metadata enrichment
         import re
+        from app.services.metadata_builder import build_metadata
         for node in self.nodes:
             text = node["content_text"] or ""
             markdown = node["content_markdown"] or ""
@@ -211,7 +222,23 @@ class DocumentTreeBuilder:
                 curr_parent_id = p_node["parent_id"]
             heading_path.reverse()
             
-            node["metadata_json"].update({
+            # section_path is parent headings AND current node if current is heading
+            section_path = list(heading_path)
+            if node_type in heading_types:
+                section_path.append(text)
+                
+            # Get keywords and other metadata using the metadata_builder service
+            old_meta = build_metadata(text, contains_code, node["language"])
+            
+            # Merge existing metadata_json keys
+            merged_meta = dict(node.get("metadata_json", {}))
+            merged_meta.update(old_meta)
+            
+            # Guarantee default keywords key is present
+            if "keywords" not in merged_meta:
+                merged_meta["keywords"] = []
+            
+            merged_meta.update({
                 "word_count": word_count,
                 "token_estimate": token_estimate,
                 "sentence_count": sentence_count,
@@ -225,7 +252,13 @@ class DocumentTreeBuilder:
                 "language": node["language"] or "en",
                 "heading_path": heading_path,
                 "document_path": heading_path,
-                "section_path": heading_path
+                "section_path": section_path
             })
+            
+            # If node is a heading, store heading_level
+            if node_type in heading_types:
+                merged_meta["heading_level"] = node["hierarchy_level"]
+                
+            node["metadata_json"] = merged_meta
                 
         return self.nodes
