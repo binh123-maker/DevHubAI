@@ -88,7 +88,9 @@ def _store_chunks(
                 is_code = (node.node_category == "code")
                 language = node.language
 
-        c_metadata = build_metadata(c["content"], is_code, language)
+        c_metadata = c.get("metadata_json")
+        if c_metadata is None:
+            c_metadata = build_metadata(c["content"], is_code, language)
 
         db_chunks.append(
             DocumentChunk(
@@ -297,8 +299,35 @@ def execute_processing_job(db: Session, job_id: UUID) -> None:
         job.progress = 70
         db.commit()
 
-        from app.services.chunk_builder import build_chunks_from_structure
-        chunks = build_chunks_from_structure(nodes)
+        fallback_used = False
+        try:
+            # ── Semantic Pipeline (Production) ────────────────────────────────
+            from app.services.pipeline.pipeline_context import PipelineContext
+            from app.services.pipeline.pipeline_profile import PipelineProfile
+            from app.services.pipeline.semantic_pipeline import SemanticPipeline
+
+            pipe_ctx = PipelineContext(
+                document=document,
+                document_version=version,
+                nodes=nodes,
+            )
+            pipeline = SemanticPipeline(profile=PipelineProfile.production())
+            pipeline.execute(pipe_ctx)
+
+            chunks = pipe_ctx.db_chunks
+            avg_tok = sum(c["token_count"] for c in chunks) / len(chunks) if chunks else 0
+            logger.info(
+                "SemanticPipeline: Document %s | Nodes: %d | Chunks: %d | Avg Tokens: %.2f | Health: %.2f | Stages: %d",
+                document.id, len(nodes), len(chunks), avg_tok,
+                pipe_ctx.pipeline_health, len(pipe_ctx.stage_timings),
+            )
+
+        except Exception as exc:
+            logger.exception("SemanticPipeline failed. Falling back to legacy chunker: %s", exc)
+            fallback_used = True
+            from app.services.chunk_builder import build_chunks_from_structure
+            chunks = build_chunks_from_structure(nodes)
+            logger.info("Legacy fallback: Document %s | Chunks: %d | Fallback Used: True", document.id, len(chunks))
 
         # Check cancellation
         db.refresh(job)
