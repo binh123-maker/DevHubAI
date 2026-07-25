@@ -1,7 +1,6 @@
 import logging
 from typing import Generator, List
 import openai
-import httpx
 from app.services.ai.config.provider_config import ProviderConfigCenter
 from app.services.ai.providers.base import BaseLLMProvider
 from app.services.ai.models.capabilities import ProviderCapabilities
@@ -13,24 +12,21 @@ from app.services.ai.exceptions import (
     ProviderUnavailableError,
     GenerationError,
     RateLimitError,
-    TimeoutError,
-    ConfigurationError
+    TimeoutError
 )
 
 logger = logging.getLogger(__name__)
 
-class OllamaProvider(BaseLLMProvider):
+class GroqProvider(BaseLLMProvider):
     def __init__(self, model: str = "") -> None:
-        cfg = ProviderConfigCenter.get_provider_config("ollama")
+        cfg = ProviderConfigCenter.get_provider_config("groq")
         self.model_name = model or cfg.default_model
-        self.base_url = cfg.base_url or "http://localhost:11434"
-
-        # Initialize client pointing to Ollama base url
-        openai_base_url = self.base_url.rstrip('/') + '/v1' if not self.base_url.endswith('/v1') else self.base_url
+        self.api_key = cfg.api_key
+        self.base_url = cfg.base_url or "https://api.groq.com/openai/v1"
 
         self.client = openai.OpenAI(
-            api_key="ollama-local",
-            base_url=openai_base_url,
+            api_key=self.api_key or "no-key-configured",
+            base_url=self.base_url,
             timeout=cfg.timeout
         )
 
@@ -39,10 +35,10 @@ class OllamaProvider(BaseLLMProvider):
         return ProviderCapabilities(
             supports_stream=True,
             supports_images=False,
-            supports_tools=False,
-            supports_function_calling=False,
+            supports_tools=True,
+            supports_function_calling=True,
             supports_json_mode=True,
-            supports_embeddings=True
+            supports_embeddings=False
         )
 
     def _convert_messages(self, request: ChatRequest) -> List[dict]:
@@ -54,20 +50,28 @@ class OllamaProvider(BaseLLMProvider):
         return messages
 
     def _map_exception(self, exc: Exception) -> AIError:
-        if isinstance(exc, (openai.APIConnectionError, httpx.RequestError)):
-            return ProviderUnavailableError("Could not connect to local Ollama service.", exc)
+        if isinstance(exc, openai.AuthenticationError):
+            return AuthenticationError("Invalid Groq API Key or unauthorized request.", exc)
+        elif isinstance(exc, openai.RateLimitError):
+            return RateLimitError("Groq API rate limit exceeded.", exc)
         elif isinstance(exc, openai.APITimeoutError):
-            return TimeoutError("Ollama request timed out.", exc)
+            return TimeoutError("Groq API request timed out.", exc)
+        elif isinstance(exc, openai.APIConnectionError):
+            return ProviderUnavailableError("Could not connect to Groq endpoint.", exc)
+        elif isinstance(exc, openai.NotFoundError):
+            return ProviderUnavailableError(f"Requested Groq model not found: {str(exc)}", exc)
         elif isinstance(exc, AIError):
             return exc
-        return GenerationError(f"Ollama provider error: {str(exc)}", exc)
+        return GenerationError(f"Groq provider error: {str(exc)}", exc)
 
     def generate_response(self, request: ChatRequest) -> UnifiedResponse:
         try:
-            messages = self._convert_messages(request)
+            if not self.api_key:
+                raise AuthenticationError("GROQ_API_KEY is not configured.")
+            groq_messages = self._convert_messages(request)
             response = self.client.chat.completions.create(
                 model=self.model_name,
-                messages=messages,
+                messages=groq_messages,
                 temperature=request.temperature,
                 max_tokens=request.max_tokens or None,
                 stream=False
@@ -82,7 +86,7 @@ class OllamaProvider(BaseLLMProvider):
                 )
             return UnifiedResponse(
                 content=choice.message.content or "",
-                provider="ollama",
+                provider="groq",
                 model=self.model_name,
                 finish_reason=choice.finish_reason,
                 usage=usage,
@@ -93,10 +97,12 @@ class OllamaProvider(BaseLLMProvider):
 
     def generate_stream(self, request: ChatRequest) -> Generator[UnifiedResponse, None, None]:
         try:
-            messages = self._convert_messages(request)
+            if not self.api_key:
+                raise AuthenticationError("GROQ_API_KEY is not configured.")
+            groq_messages = self._convert_messages(request)
             response_stream = self.client.chat.completions.create(
                 model=self.model_name,
-                messages=messages,
+                messages=groq_messages,
                 temperature=request.temperature,
                 max_tokens=request.max_tokens or None,
                 stream=True
@@ -107,7 +113,7 @@ class OllamaProvider(BaseLLMProvider):
                     content = choice.delta.content or ""
                     yield UnifiedResponse(
                         content=content,
-                        provider="ollama",
+                        provider="groq",
                         model=self.model_name,
                         finish_reason=choice.finish_reason,
                         raw_response=chunk
@@ -117,17 +123,20 @@ class OllamaProvider(BaseLLMProvider):
 
     def health_check(self) -> bool:
         try:
-            resp = httpx.get(f"{self.base_url}/api/tags", timeout=3.0)
-            return resp.status_code == 200
+            if not self.api_key:
+                return False
+            self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": "ping"}],
+                max_tokens=1
+            )
+            return True
         except Exception:
             return False
 
     def list_models(self) -> List[str]:
         try:
-            resp = httpx.get(f"{self.base_url}/api/tags", timeout=5.0)
-            if resp.status_code == 200:
-                data = resp.json()
-                return [m.get("name") for m in data.get("models", [])]
-            return [self.model_name]
+            models_list = self.client.models.list()
+            return [getattr(m, "id", str(m)) for m in models_list]
         except Exception as e:
             raise self._map_exception(e)

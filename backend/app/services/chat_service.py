@@ -1,7 +1,7 @@
 import re
 import difflib
 from collections import defaultdict
-from app.services.ai import AIOrchestrator
+from app.services.ai import AIOrchestrator, AIGateway
 from sqlalchemy.orm import Session
 from uuid import UUID
 import logging
@@ -365,10 +365,10 @@ def send_message(db: Session, user_id: UUID, chat_id: UUID, msg_in: ChatMessageC
         # Load recent history (last 10 messages for context)
         history = db.query(ChatMessage).filter(ChatMessage.chat_id == chat.id).order_by(ChatMessage.created_at.asc()).limit(10).all()
         
-        # Call AIOrchestrator
+        # Call AIGateway
         try:
-            response = AIOrchestrator.generate_response(
-                user_message=msg_in.content,
+            response = AIGateway.chat(
+                message=msg_in.content,
                 context_text=context_text,
                 history_messages=history[:-1],
                 system_instruction=system_instruction,

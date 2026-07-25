@@ -11,7 +11,23 @@ class ProviderRegistry:
     def register(cls, name: str):
         """Decorator to register an AI provider."""
         def decorator(subclass: Type[BaseLLMProvider]):
-            cls._registry[name.lower()] = subclass
+            name_lower = name.lower()
+            cls._registry[name_lower] = subclass
+            # Also register in runtime ProviderRegistry
+            try:
+                from app.services.ai.runtime.provider_registry import ProviderRegistry as RuntimeRegistry
+                from app.services.ai.runtime.provider_profile import ProviderProfile
+                from app.services.ai.runtime.provider_capability import Capability
+                RuntimeRegistry.register_provider(
+                    profile=ProviderProfile(
+                        provider_id=name_lower,
+                        display_name=name.capitalize(),
+                        capabilities=[Capability.CHAT]
+                    ),
+                    provider_class=subclass
+                )
+            except Exception:
+                pass
             logger.info(f"Registered AI provider: {name}")
             return subclass
         return decorator
@@ -20,9 +36,16 @@ class ProviderRegistry:
     def get_provider_class(cls, name: str) -> Type[BaseLLMProvider]:
         """Retrieve a registered provider class."""
         name_lower = name.lower()
-        if name_lower not in cls._registry:
-            raise KeyError(f"Provider '{name}' is not registered.")
-        return cls._registry[name_lower]
+        if name_lower in cls._registry:
+            return cls._registry[name_lower]
+        try:
+            from app.services.ai.runtime.provider_registry import ProviderRegistry as RuntimeRegistry
+            cls_found = RuntimeRegistry.get_provider_class(name_lower)
+            if cls_found:
+                return cls_found
+        except Exception:
+            pass
+        raise KeyError(f"Provider '{name}' is not registered.")
 
     @classmethod
     def list_registered_providers(cls) -> list[str]:

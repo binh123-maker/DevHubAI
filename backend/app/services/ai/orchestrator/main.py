@@ -9,6 +9,7 @@ from app.services.ai.circuit_breaker.breaker import CircuitBreaker
 from app.services.ai.metrics.collector import MetricsCollector
 from app.services.ai.models.prompt import ChatRequest, PromptPackage
 from app.services.ai.models.response import UnifiedResponse, ChatMessage
+from app.services.ai.models.routing import ProviderSelection
 from app.services.ai.exceptions import AIError, TimeoutError, RateLimitError
 from app.services.ai.utils.response_formatter import ResponseFormatter
 
@@ -31,14 +32,24 @@ class AIOrchestrator:
         history_messages: Optional[List[Any]] = None,
         system_instruction: Optional[str] = None,
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None
+        max_tokens: Optional[int] = None,
+        override_provider: Optional[str] = None,
+        override_model: Optional[str] = None
     ) -> UnifiedResponse:
         """
         Orchestrates prompt building, provider routing, factory resolution,
         retry policy, circuit breaker, and metrics logging.
+        Supports optional override_provider and override_model from Gateway/FallbackManager.
         """
         # 1. Route to provider selection
-        selection = AIRouter.select_provider()
+        if override_provider:
+            selection = ProviderSelection(
+                provider=override_provider,
+                model=override_model or "default",
+                reason="GatewayOverride"
+            )
+        else:
+            selection = AIRouter.select_provider()
 
         # 2. Build prompt package
         prompt_package = PromptBuilder.build_prompt(
@@ -61,7 +72,7 @@ class AIOrchestrator:
 
         start_time = time.time()
         calls = 0
-        
+
         def _call_provider():
             nonlocal calls
             calls += 1
@@ -73,12 +84,12 @@ class AIOrchestrator:
                 _retry_policy.execute,
                 _call_provider
             )
-            
+
             latency = (time.time() - start_time) * 1000
             response.latency_ms = latency
             if response.content:
                 response.content = ResponseFormatter.sanitize(response.content)
-            
+
             # Record metrics
             input_tokens = response.usage.input_tokens if response.usage else 0
             output_tokens = response.usage.output_tokens if response.usage else 0
@@ -90,7 +101,7 @@ class AIOrchestrator:
                 completion_tokens=output_tokens,
                 retry_count=max(0, calls - 1)
             )
-            
+
             return response
         except Exception as e:
             latency = (time.time() - start_time) * 1000
@@ -111,14 +122,24 @@ class AIOrchestrator:
         history_messages: Optional[List[Any]] = None,
         system_instruction: Optional[str] = None,
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None
+        max_tokens: Optional[int] = None,
+        override_provider: Optional[str] = None,
+        override_model: Optional[str] = None
     ) -> Generator[UnifiedResponse, None, None]:
         """
         Orchestrator stream generator interface.
         Wrapped with circuit breaker but bypasses general retry policies
         due to streaming connection constraints.
         """
-        selection = AIRouter.select_provider()
+        if override_provider:
+            selection = ProviderSelection(
+                provider=override_provider,
+                model=override_model or "default",
+                reason="GatewayOverride"
+            )
+        else:
+            selection = AIRouter.select_provider()
+
         prompt_package = PromptBuilder.build_prompt(
             user_message=user_message,
             context_text=context_text,
@@ -142,7 +163,7 @@ class AIOrchestrator:
             sanitized_stream = ResponseFormatter.sanitize_stream(stream_gen)
             for chunk in sanitized_stream:
                 yield chunk
-                
+
             latency = (time.time() - start_time) * 1000
             MetricsCollector.record(
                 provider=selection.provider,
