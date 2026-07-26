@@ -444,3 +444,64 @@ def delete_all_chats(db: Session, user_id: UUID) -> None:
         db.rollback()
         raise e
 
+
+def duplicate_chat(db: Session, user_id: UUID, chat_id: UUID) -> ChatResponse:
+    """Duplicate a chat session and all of its messages."""
+    chat = db.query(Chat).filter(Chat.id == chat_id, Chat.user_id == user_id).first()
+    if not chat:
+        raise ChatError("Chat session not found.", status_code=404)
+
+    # 1. Create new Chat object
+    new_chat = Chat(
+        user_id=user_id,
+        workspace_id=chat.workspace_id,
+        folder_id=chat.folder_id,
+        document_id=chat.document_id,
+        title=f"{chat.title} (Bản sao)",
+        chat_mode=chat.chat_mode,
+        is_favorite=chat.is_favorite,
+        message_count=chat.message_count,
+    )
+    db.add(new_chat)
+    db.commit()
+    db.refresh(new_chat)
+
+    # 2. Duplicate all messages
+    old_messages = db.query(ChatMessage).filter(ChatMessage.chat_id == chat.id).order_by(ChatMessage.created_at).all()
+    for msg in old_messages:
+        new_msg = ChatMessage(
+            chat_id=new_chat.id,
+            role=msg.role,
+            content=msg.content,
+            token_count=msg.token_count,
+        )
+        db.add(new_msg)
+    db.commit()
+
+    return get_chat(db, user_id, new_chat.id)
+
+
+def export_chat(db: Session, user_id: UUID, chat_id: UUID) -> str:
+    """Export a chat conversation as Markdown text."""
+    chat = db.query(Chat).filter(Chat.id == chat_id, Chat.user_id == user_id).first()
+    if not chat:
+        raise ChatError("Chat session not found.", status_code=404)
+
+    messages = db.query(ChatMessage).filter(ChatMessage.chat_id == chat.id).order_by(ChatMessage.created_at).all()
+
+    lines = [
+        f"# {chat.title}",
+        f"**Mode:** {chat.chat_mode.value if hasattr(chat.chat_mode, 'value') else chat.chat_mode}",
+        f"**Created:** {chat.created_at.strftime('%Y-%m-%d %H:%M:%S')}",
+        "\n---\n",
+    ]
+
+    for msg in messages:
+        role_label = "👤 User" if msg.role == MessageRole.USER else "🤖 DevHub AI"
+        lines.append(f"### {role_label}\n")
+        lines.append(f"{msg.content}\n")
+        lines.append("\n---\n")
+
+    return "\n".join(lines)
+
+

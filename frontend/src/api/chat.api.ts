@@ -47,7 +47,21 @@ export const chatApi = {
     return data;
   },
 
+  duplicateChat: async (chatId: string) => {
+    const { data } = await apiClient.post<Chat>(`/chats/${chatId}/duplicate`);
+    return data;
+  },
+
+  exportChat: async (chatId: string) => {
+    const { data } = await apiClient.get<{ content: string }>(`/chats/${chatId}/export`);
+    return data.content;
+  },
+
   deleteChat: async (chatId: string) => {
     await apiClient.delete(`/chats/${chatId}`);
+  },
+
+  clearAllChats: async () => {
+    await apiClient.delete('/chats');
   },
 };

@@ -1,38 +1,41 @@
-import { Link, Outlet } from "react-router-dom"
+import { Outlet, useLocation } from "react-router-dom"
 
-import { useAuth } from "@/contexts/AuthContext"
-
-const navItems = [
-  { to: "/workspaces", label: "Workspaces" },
-  { to: "/history", label: "Chat History" },
-  { to: "/profile", label: "Profile" },
-]
+import { Sidebar } from "./Sidebar"
+import { AppHeader } from "./AppHeader"
+import { MobileDrawer } from "./MobileDrawer"
+import { GlobalSearchModal } from "./GlobalSearchModal"
+import { BackToTop } from "./BackToTop"
 
 export function AppLayout() {
-  const { user } = useAuth()
+  const location = useLocation()
+  const isChatRoute = location.pathname.startsWith("/history")
 
   return (
+    <div className="flex h-screen h-[100dvh] w-full overflow-hidden bg-background text-foreground antialiased">
+      {/* Sticky Desktop Sidebar */}
+      <Sidebar />
 
-    <div className="flex min-h-screen">
-      <aside className="w-64 border-r bg-muted/30 p-4">
-        <div className="mb-2 text-xl font-bold text-primary">DevHub AI</div>
-        {user && <p className="mb-6 text-sm text-muted-foreground">{user.full_name || user.email}</p>}
-        <nav className="space-y-2">
-          {navItems.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className="block rounded-md px-3 py-2 text-sm hover:bg-accent"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      </aside>
-      <main className="flex-1 p-8">
-        <Outlet />
-      </main>
+      {/* Main Content Area */}
+      <div className="flex flex-1 flex-col min-w-0 h-full overflow-hidden">
+        {/* Sticky Top Header */}
+        <AppHeader />
+
+        {/* Page View Body */}
+        <main
+          className={
+            isChatRoute
+              ? "flex-1 min-h-0 w-full p-0 overflow-hidden flex flex-col"
+              : "flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto overflow-y-auto"
+          }
+        >
+          <Outlet />
+        </main>
+      </div>
+
+      {/* Global Modals & Utilities */}
+      <MobileDrawer />
+      <GlobalSearchModal />
+      {!isChatRoute && <BackToTop />}
     </div>
   )
-
 }

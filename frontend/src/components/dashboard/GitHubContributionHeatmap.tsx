@@ -9,13 +9,31 @@ interface GitHubContributionHeatmapProps {
   days?: number
 }
 
-export function GitHubContributionHeatmap({ data, days = 90 }: GitHubContributionHeatmapProps) {
+type RangeOption = 30 | 90 | 180 | 365
+
+export function GitHubContributionHeatmap({ data, days: initialDays = 90 }: GitHubContributionHeatmapProps) {
   const [hoveredDay, setHoveredDay] = useState<HeatmapDay | null>(null)
 
-  const activeData = data.slice(-days)
+  const [selectedRange, setSelectedRange] = useState<RangeOption>(() => {
+    const saved = localStorage.getItem("devhub-heatmap-range")
+    if (saved) {
+      const parsed = parseInt(saved, 10)
+      if (parsed === 30 || parsed === 90 || parsed === 180 || parsed === 365) {
+        return parsed as RangeOption
+      }
+    }
+    return (initialDays as RangeOption) || 90
+  })
+
+  const handleRangeChange = (range: RangeOption) => {
+    setSelectedRange(range)
+    localStorage.setItem("devhub-heatmap-range", range.toString())
+  }
+
+  const activeData = data.slice(-selectedRange)
   const totalActivity = activeData.reduce((acc, curr) => acc + curr.count, 0)
 
-  // Helper to determine color intensity class
+  // Helper for color intensity class
   const getIntensityClass = (count: number) => {
     if (count === 0) return "bg-muted/40 dark:bg-muted/20 border-border/30"
     if (count <= 2) return "bg-emerald-200 dark:bg-emerald-950/70 border-emerald-400/40 text-emerald-950 dark:text-emerald-100"
@@ -24,7 +42,6 @@ export function GitHubContributionHeatmap({ data, days = 90 }: GitHubContributio
     return "bg-emerald-600 dark:bg-emerald-500 border-emerald-700/60 text-white font-bold ring-2 ring-emerald-500/30"
   }
 
-  // Format date helper
   const formatDate = (dateStr: string) => {
     try {
       const d = new Date(dateStr)
@@ -39,7 +56,7 @@ export function GitHubContributionHeatmap({ data, days = 90 }: GitHubContributio
     }
   }
 
-  // Group into weeks (columns of 7 days)
+  // Group into weeks
   const weeks: HeatmapDay[][] = []
   let currentWeek: HeatmapDay[] = []
 
@@ -53,28 +70,32 @@ export function GitHubContributionHeatmap({ data, days = 90 }: GitHubContributio
 
   return (
     <Card className="border border-border/50 bg-card/60 backdrop-blur-sm shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between pb-3">
+      <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-3 gap-3">
         <div className="space-y-1">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <Calendar className="h-4 w-4 text-emerald-500" />
-            Biểu đồ đóng góp (Last {days} Days)
+            Biểu đồ đóng góp ({selectedRange} Ngày qua)
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Tổng cộng <span className="font-semibold text-foreground">{totalActivity} hoạt động</span> trong {activeData.length} ngày qua
+            Tổng cộng <span className="font-semibold text-foreground">{totalActivity} hoạt động</span> trong {activeData.length} ngày
           </p>
         </div>
 
-        {/* Legend */}
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span>Ít</span>
-          <div className="flex items-center gap-1">
-            <div className="h-3 w-3 rounded-sm bg-muted/40 border border-border/30" />
-            <div className="h-3 w-3 rounded-sm bg-emerald-200 dark:bg-emerald-950/70" />
-            <div className="h-3 w-3 rounded-sm bg-emerald-400 dark:bg-emerald-700" />
-            <div className="h-3 w-3 rounded-sm bg-emerald-500 dark:bg-emerald-600" />
-            <div className="h-3 w-3 rounded-sm bg-emerald-600 dark:bg-emerald-500" />
-          </div>
-          <span>Nhiều</span>
+        {/* Range Switcher Buttons */}
+        <div className="flex items-center gap-1 bg-muted p-1 rounded-lg text-xs">
+          {([30, 90, 180, 365] as RangeOption[]).map((r) => (
+            <button
+              key={r}
+              onClick={() => handleRangeChange(r)}
+              className={`px-2 py-1 font-medium rounded-md transition-all ${
+                selectedRange === r
+                  ? "bg-background text-foreground shadow-xs font-bold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {r}D
+            </button>
+          ))}
         </div>
       </CardHeader>
 
@@ -111,7 +132,7 @@ export function GitHubContributionHeatmap({ data, days = 90 }: GitHubContributio
           ) : (
             <div className="flex items-center gap-1 text-muted-foreground/80">
               <Info className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>Di chuột vào từng ô vuông để xem chi tiết hoạt động hàng ngày</span>
+              <span>Di chuột vào từng ô vuông để xem chi tiết đóng góp</span>
             </div>
           )}
         </div>

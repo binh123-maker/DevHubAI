@@ -6,7 +6,9 @@ export interface Citation {
   line_end?: number;
   heading?: string;
   url?: string;
+  excerpt?: string;
 }
+
 
 export interface ChatMessage {
   id: string;

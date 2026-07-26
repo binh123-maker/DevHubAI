@@ -94,3 +94,40 @@ def delete_chat(
         chat_service.delete_chat(db, current_user.id, chat_id)
     except chat_service.ChatError as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
+
+
+@router.delete("", status_code=status.HTTP_204_NO_CONTENT)
+def delete_all_chats(
+    current_user: CurrentUser,
+    db: DbSession,
+):
+    """Delete all chats for the current user."""
+    chat_service.delete_all_chats(db, current_user.id)
+
+
+@router.post("/{chat_id}/duplicate", response_model=ChatResponse, status_code=status.HTTP_201_CREATED)
+def duplicate_chat(
+    chat_id: UUID,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> ChatResponse:
+    """Duplicate a chat session and all messages."""
+    try:
+        return chat_service.duplicate_chat(db, current_user.id, chat_id)
+    except chat_service.ChatError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
+
+@router.get("/{chat_id}/export")
+def export_chat(
+    chat_id: UUID,
+    current_user: CurrentUser,
+    db: DbSession,
+):
+    """Export conversation content as plain text/markdown."""
+    try:
+        content = chat_service.export_chat(db, current_user.id, chat_id)
+        return {"content": content}
+    except chat_service.ChatError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
