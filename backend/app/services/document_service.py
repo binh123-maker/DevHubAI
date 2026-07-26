@@ -745,4 +745,21 @@ def get_url_resource(db: Session, user_id: UUID, document_id: UUID) -> UrlResour
     return db.scalar(select(UrlResource).where(UrlResource.id == version.url_resource_id))
 
 
+def update_document_kanban_status(db: Session, user_id: UUID, document_id: UUID, kanban_status: str) -> Document:
+    from datetime import datetime, timezone
+    from app.models.enums import KanbanStatus
+
+    document = get_owned_document(db, user_id, document_id)
+    try:
+        document.kanban_status = KanbanStatus(kanban_status)
+    except ValueError:
+        raise DocumentError(f"Trạng thái kanban không hợp lệ: {kanban_status}", status_code=422)
+
+    document.kanban_updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(document)
+    return document
+
+
+
 

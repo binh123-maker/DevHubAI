@@ -1,0 +1,24 @@
+{
+  "name": "development",
+  "description": "Development profile preferring local models and fast low-cost cloud APIs",
+  "priorities": {
+    "chat": ["ollama", "groq", "gemini", "openai", "openrouter"],
+    "reasoning": ["ollama", "groq", "gemini", "openai"],
+    "document_qa": ["ollama", "gemini", "groq", "openai"],
+    "summarization": ["groq", "ollama", "gemini", "openai"],
+    "code_generation": ["groq", "openai", "gemini"],
+    "embedding": ["ollama", "openai"]
+  },
+  "timeouts": {
+    "default": 30.0,
+    "ollama": 60.0
+  },
+  "retries": {
+    "default": 1
+  },
+  "cooldown": 30.0,
+  "preferred_models": {
+    "ollama": {"chat": "qwen2.5:7b"},
+    "groq": {"chat": "llama-3.1-8b-instant"}
+  }
+}

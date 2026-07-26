@@ -1,9 +1,11 @@
 from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel
+from app.models.enums import KanbanStatus
 
 
 class UrlResourceResponse(BaseModel):
+
     id: UUID
     original_url: str
     fetched_html: str | None = None
@@ -89,11 +91,18 @@ class DocumentResponse(BaseModel):
     file_type: str
     file_size: int
     status: str
+    kanban_status: KanbanStatus
+    kanban_updated_at: datetime
     view_count: int
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class DocumentKanbanStatusUpdate(BaseModel):
+    kanban_status: KanbanStatus
+
 
 
 class ChunkResponse(BaseModel):

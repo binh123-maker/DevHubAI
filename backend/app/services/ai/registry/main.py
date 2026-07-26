@@ -6,6 +6,26 @@ logger = logging.getLogger(__name__)
 
 class ProviderRegistry:
     _registry: Dict[str, Type[BaseLLMProvider]] = {}
+    _initialized: bool = False
+
+    @classmethod
+    def _ensure_initialized(cls) -> None:
+        if not cls._initialized:
+            cls._initialized = True
+            try:
+                from app.services.ai.providers.openai_provider import OpenAIProvider
+                from app.services.ai.providers.gemini_provider import GeminiProvider
+                from app.services.ai.providers.groq_provider import GroqProvider
+                from app.services.ai.providers.openrouter_provider import OpenRouterProvider
+                from app.services.ai.providers.ollama_provider import OllamaProvider
+
+                cls._registry["openai"] = OpenAIProvider
+                cls._registry["gemini"] = GeminiProvider
+                cls._registry["groq"] = GroqProvider
+                cls._registry["openrouter"] = OpenRouterProvider
+                cls._registry["ollama"] = OllamaProvider
+            except Exception as e:
+                logger.warning(f"[ProviderRegistry] Failed to pre-register default providers: {e}")
 
     @classmethod
     def register(cls, name: str):
@@ -35,6 +55,7 @@ class ProviderRegistry:
     @classmethod
     def get_provider_class(cls, name: str) -> Type[BaseLLMProvider]:
         """Retrieve a registered provider class."""
+        cls._ensure_initialized()
         name_lower = name.lower()
         if name_lower in cls._registry:
             return cls._registry[name_lower]
@@ -50,4 +71,5 @@ class ProviderRegistry:
     @classmethod
     def list_registered_providers(cls) -> list[str]:
         """List all registered provider names."""
+        cls._ensure_initialized()
         return list(cls._registry.keys())

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+
 import {
   Dialog,
   DialogContent,
@@ -40,7 +41,7 @@ export function NewChatScopeDialog({ open, onOpenChange, onStartChat }: NewChatS
   const [folderId, setFolderId] = useState<string>('');
   const [documentId, setDocumentId] = useState<string>('');
 
-  const [isLoading, setIsLoading] = useState(false);
+
 
   useEffect(() => {
     if (open) {

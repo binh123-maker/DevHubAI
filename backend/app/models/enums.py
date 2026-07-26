@@ -51,3 +51,11 @@ class CitationSourceType(str, enum.Enum):
     DOCUMENT = "document"
     WEBSITE = "website"
     NOTE = "note"
+
+
+class KanbanStatus(str, enum.Enum):
+    NEW = "new"
+    LEARNING = "learning"
+    COMPLETED = "completed"
+    ARCHIVED = "archived"
+

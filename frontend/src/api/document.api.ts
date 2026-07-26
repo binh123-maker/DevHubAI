@@ -1,5 +1,7 @@
 import { apiClient } from "./axios"
 
+export type KanbanStatus = "new" | "learning" | "completed" | "archived"
+
 export interface Document {
   id: string
   workspace_id: string
@@ -10,6 +12,8 @@ export interface Document {
   file_type: string
   file_size: number
   status: string
+  kanban_status: KanbanStatus
+  kanban_updated_at: string
   view_count: number
   created_at: string
   updated_at: string
@@ -36,6 +40,15 @@ export const documentApi = {
     }
     return apiClient.get<Document[]>(url)
   },
+
+  listAll: (workspaceId?: string, folderId?: string) => {
+    let url = `/documents`
+    const params: string[] = []
+    if (workspaceId) params.push(`workspace_id=${workspaceId}`)
+    if (folderId) params.push(`folder_id=${folderId}`)
+    if (params.length > 0) url += `?${params.join("&")}`
+    return apiClient.get<Document[]>(url)
+  },
   
   get: (id: string) => apiClient.get<Document>(`/documents/${id}`),
   
@@ -45,6 +58,10 @@ export const documentApi = {
 
   update: (id: string, payload: { title: string; description?: string | null }) =>
     apiClient.patch<Document>(`/documents/${id}`, payload),
+
+  updateKanbanStatus: (id: string, kanbanStatus: KanbanStatus) =>
+    apiClient.patch<Document>(`/documents/${id}/kanban-status`, { kanban_status: kanbanStatus }),
+
 
   bulkDelete: (ids: string[]) =>
     apiClient.delete<{ message: string }>("/documents/bulk", {

@@ -1,7 +1,8 @@
 import { FormEvent, useEffect, useState } from "react"
 import { Folder as FolderIcon, FileText, Briefcase, Book, Image as ImageIcon, Archive, MessageSquare } from "lucide-react"
 
-import { type Folder, type FolderCreatePayload, type FolderUpdatePayload } from "@/api/folder.api"
+import { type Folder } from "@/api/folder.api"
+
 import { Button } from "@/components/ui/button"
 import {
   Dialog,

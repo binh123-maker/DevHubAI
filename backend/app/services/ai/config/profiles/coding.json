@@ -1,0 +1,17 @@
+{
+  "name": "coding",
+  "description": "Coding profile prioritizing top code generation models",
+  "priorities": {
+    "chat": ["openrouter", "groq", "openai", "gemini"],
+    "code_generation": ["openrouter", "openai", "groq", "gemini"],
+    "code_explanation": ["openai", "gemini", "groq"],
+    "code_review": ["openai", "gemini"]
+  },
+  "timeouts": {
+    "default": 35.0
+  },
+  "retries": {
+    "default": 2
+  },
+  "cooldown": 45.0
+}

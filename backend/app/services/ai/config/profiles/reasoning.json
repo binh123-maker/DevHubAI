@@ -1,0 +1,16 @@
+{
+  "name": "reasoning",
+  "description": "Deep reasoning profile prioritizing high reasoning capabilities",
+  "priorities": {
+    "chat": ["groq", "ollama", "gemini", "openai"],
+    "reasoning": ["groq", "ollama", "gemini", "openai", "openrouter"],
+    "document_qa": ["gemini", "groq", "openai"]
+  },
+  "timeouts": {
+    "default": 45.0
+  },
+  "retries": {
+    "default": 2
+  },
+  "cooldown": 60.0
+}

@@ -31,9 +31,12 @@ from app.services.ai.capability.types import AICapability, AIRole
 from app.services.ai.capability.router import CapabilityRouter
 from app.services.ai.health.monitor import HealthMonitor
 from app.services.ai.fallback.manager import FallbackManager
+from app.services.ai.policy import PolicyEngine, PolicyLoader, PolicyProfile
+from app.services.ai.config import ConfigurationValidator
 from app.services.ai.runtime import (
     Capability,
     ProviderProfile,
+    ProviderAlias,
     ProviderSelector,
     ProviderResult,
     ProviderRuntime,
@@ -41,7 +44,11 @@ from app.services.ai.runtime import (
     ProviderMetrics,
     ProviderManifest,
     ProviderExplanationReport,
-    ProviderGraph
+    ProviderGraph,
+    ProviderSandbox,
+    RecommendationEngine,
+    RuntimeTimeline,
+    RuntimeDashboard
 )
 
 __all__ = [
@@ -72,8 +79,13 @@ __all__ = [
     "CapabilityRouter",
     "HealthMonitor",
     "FallbackManager",
+    "PolicyEngine",
+    "PolicyLoader",
+    "PolicyProfile",
+    "ConfigurationValidator",
     "Capability",
     "ProviderProfile",
+    "ProviderAlias",
     "ProviderSelector",
     "ProviderResult",
     "ProviderRuntime",
@@ -82,4 +94,8 @@ __all__ = [
     "ProviderManifest",
     "ProviderExplanationReport",
     "ProviderGraph",
+    "ProviderSandbox",
+    "RecommendationEngine",
+    "RuntimeTimeline",
+    "RuntimeDashboard",
 ]

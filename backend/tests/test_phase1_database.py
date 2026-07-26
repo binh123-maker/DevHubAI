@@ -52,15 +52,18 @@ def test_phase1_database_models(db_session: Session):
     db_session.refresh(url_res)
 
     # 3. Create DocumentBinary
-    binary = DocumentBinary(
-        sha256="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-        file_path="/uploads/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855.txt",
-        file_type="txt",
-        file_size=0
-    )
-    db_session.add(binary)
-    db_session.commit()
-    db_session.refresh(binary)
+    binary = db_session.get(DocumentBinary, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+    if not binary:
+        binary = DocumentBinary(
+            sha256="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            file_path="/uploads/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855.txt",
+            file_type="txt",
+            file_size=0
+        )
+        db_session.add(binary)
+        db_session.commit()
+        db_session.refresh(binary)
+
 
     # 4. Create DocumentVersion
     version = DocumentVersion(

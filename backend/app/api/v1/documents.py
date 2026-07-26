@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import CurrentUser
 from app.db.session import get_db
 from app.schemas.common import MessageResponse
-from app.schemas.document import BulkDeleteRequest, ChunkResponse, DocumentResponse, DocumentUpdateRequest, UrlUploadRequest, DocumentStructureNodeResponse, UrlResourceResponse
+from app.schemas.document import BulkDeleteRequest, ChunkResponse, DocumentResponse, DocumentUpdateRequest, UrlUploadRequest, DocumentStructureNodeResponse, UrlResourceResponse, DocumentKanbanStatusUpdate
 from app.services import document_service
 
 router = APIRouter()
@@ -192,3 +192,23 @@ def delete_document(
         return MessageResponse(message="Document deleted successfully")
     except document_service.DocumentError as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
+
+
+@router.patch("/{document_id}/kanban-status", response_model=DocumentResponse)
+def update_document_kanban_status(
+    document_id: UUID,
+    payload: DocumentKanbanStatusUpdate,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> DocumentResponse:
+    """Update Kanban status of a document."""
+    try:
+        return document_service.update_document_kanban_status(
+            db,
+            current_user.id,
+            document_id,
+            payload.kanban_status.value,
+        )
+    except document_service.DocumentError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+

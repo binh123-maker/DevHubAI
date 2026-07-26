@@ -19,13 +19,22 @@ from app.services.ai.health.monitor import HealthMonitor
 
 @pytest.fixture(autouse=True)
 def reset_runtime_state():
+    from app.services.ai.config import ProviderModel, ProviderCapabilityMatrix
     ProviderStatistics.reset()
     ProviderMetrics.reset()
     HealthMonitor.reset()
+    ProviderRegistry.reset()
+    ProviderCapabilityMatrix.reset()
+    ProviderModel.reset()
+    ProviderSelector.reset()
     yield
     ProviderStatistics.reset()
     ProviderMetrics.reset()
     HealthMonitor.reset()
+    ProviderRegistry.reset()
+    ProviderCapabilityMatrix.reset()
+    ProviderModel.reset()
+    ProviderSelector.reset()
 
 def test_provider_registration_and_profiles():
     profile = ProviderProfile(

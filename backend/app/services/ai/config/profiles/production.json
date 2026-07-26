@@ -1,0 +1,26 @@
+{
+  "name": "production",
+  "description": "Production profile prioritizing quality, high uptime, and enterprise APIs",
+  "priorities": {
+    "chat": ["gemini", "groq", "openai", "openrouter", "ollama"],
+    "reasoning": ["groq", "openai", "gemini", "openrouter", "ollama"],
+    "document_qa": ["gemini", "openai", "groq", "ollama"],
+    "summarization": ["groq", "gemini", "openai"],
+    "code_generation": ["openai", "gemini", "groq"],
+    "embedding": ["openai", "ollama"]
+  },
+  "timeouts": {
+    "default": 30.0,
+    "openai": 30.0,
+    "gemini": 30.0
+  },
+  "retries": {
+    "default": 2
+  },
+  "cooldown": 60.0,
+  "preferred_models": {
+    "gemini": {"chat": "gemini-2.5-flash"},
+    "openai": {"chat": "gpt-4o"},
+    "groq": {"chat": "llama-3.3-70b-versatile"}
+  }
+}

@@ -1,92 +1,69 @@
 """
 Capabilities Configuration Matrix
 Maps each system capability to an ordered list of candidate providers and model names.
+Model names are resolved dynamically via ProviderModel.resolve_model().
 """
+from typing import Dict, List, Any
+from app.services.ai.config.provider_model import ProviderModel
 
-DEFAULT_CAPABILITY_PRIORITIES = {
-    "chat": [
-        {"provider": "openai", "model": "gpt-4o"},
-        {"provider": "groq", "model": "llama-3.3-70b-versatile"},
-        {"provider": "gemini", "model": "gemini-2.5-flash"},
-        {"provider": "openrouter", "model": "meta-llama/llama-3.3-70b-instruct"},
-        {"provider": "ollama", "model": "qwen2.5:7b"}
-    ],
-    "doc_qa": [
-        {"provider": "openai", "model": "gpt-4o"},
-        {"provider": "groq", "model": "llama-3.3-70b-versatile"},
-        {"provider": "gemini", "model": "gemini-2.5-flash"},
-        {"provider": "ollama", "model": "qwen2.5:7b"}
-    ],
-    "summarization": [
-        {"provider": "groq", "model": "llama-3.3-70b-versatile"},
-        {"provider": "gemini", "model": "gemini-2.5-flash"},
-        {"provider": "openai", "model": "gpt-4o-mini"}
-    ],
-    "citation": [
-        {"provider": "openai", "model": "gpt-4o-mini"},
-        {"provider": "groq", "model": "llama-3.3-70b-versatile"}
-    ],
-    "flashcard": [
-        {"provider": "groq", "model": "llama-3.3-70b-versatile"},
-        {"provider": "openai", "model": "gpt-4o-mini"}
-    ],
-    "quiz": [
-        {"provider": "groq", "model": "llama-3.3-70b-versatile"},
-        {"provider": "openai", "model": "gpt-4o-mini"}
-    ],
-    "keyword_extraction": [
-        {"provider": "ollama", "model": "qwen2.5:7b"},
-        {"provider": "groq", "model": "llama-3.1-8b-instant"}
-    ],
-    "query_rewrite": [
-        {"provider": "ollama", "model": "qwen2.5:7b"},
-        {"provider": "groq", "model": "llama-3.1-8b-instant"}
-    ],
-    "title_generation": [
-        {"provider": "groq", "model": "llama-3.1-8b-instant"},
-        {"provider": "ollama", "model": "qwen2.5:7b"}
-    ],
-    "tag_generation": [
-        {"provider": "groq", "model": "llama-3.1-8b-instant"},
-        {"provider": "ollama", "model": "qwen2.5:7b"}
-    ],
-    "metadata_extraction": [
-        {"provider": "ollama", "model": "qwen2.5:7b"},
-        {"provider": "groq", "model": "llama-3.1-8b-instant"}
-    ],
-    "semantic_classification": [
-        {"provider": "ollama", "model": "qwen2.5:7b"},
-        {"provider": "groq", "model": "llama-3.1-8b-instant"}
-    ],
-    "code_explanation": [
-        {"provider": "openai", "model": "gpt-4o"},
-        {"provider": "gemini", "model": "gemini-2.5-flash"},
-        {"provider": "groq", "model": "llama-3.3-70b-versatile"}
-    ],
-    "code_generation": [
-        {"provider": "openai", "model": "gpt-4o"},
-        {"provider": "gemini", "model": "gemini-2.5-flash"},
-        {"provider": "groq", "model": "llama-3.3-70b-versatile"}
-    ],
-    "code_review": [
-        {"provider": "openai", "model": "gpt-4o"},
-        {"provider": "gemini", "model": "gemini-2.5-flash"}
-    ],
-    "reasoning": [
-        {"provider": "openai", "model": "gpt-4o"},
-        {"provider": "groq", "model": "llama-3.3-70b-versatile"},
-        {"provider": "gemini", "model": "gemini-2.5-flash"},
-        {"provider": "openrouter", "model": "meta-llama/llama-3.3-70b-instruct"},
-        {"provider": "ollama", "model": "qwen2.5:7b"}
-    ],
-    "rag": [
-        {"provider": "openai", "model": "gpt-4o"},
-        {"provider": "gemini", "model": "gemini-2.5-flash"},
-        {"provider": "openrouter", "model": "meta-llama/llama-3.3-70b-instruct"},
-        {"provider": "groq", "model": "llama-3.3-70b-versatile"}
-    ],
-    "embedding": [
-        {"provider": "ollama", "model": "nomic-embed-text"},
-        {"provider": "openai", "model": "text-embedding-3-small"}
-    ]
+RAW_CAPABILITY_PROVIDER_CHAINS: Dict[str, List[str]] = {
+    "chat": ["openai", "groq", "gemini", "openrouter", "ollama"],
+    "doc_qa": ["openai", "groq", "gemini", "ollama"],
+    "summarization": ["groq", "gemini", "openai"],
+    "citation": ["openai", "groq"],
+    "flashcard": ["groq", "openai"],
+    "quiz": ["groq", "openai"],
+    "keyword_extraction": ["ollama", "groq"],
+    "query_rewrite": ["ollama", "groq"],
+    "title_generation": ["groq", "ollama"],
+    "tag_generation": ["groq", "ollama"],
+    "metadata_extraction": ["ollama", "groq"],
+    "semantic_classification": ["ollama", "groq"],
+    "code_explanation": ["openai", "gemini", "groq"],
+    "code_generation": ["openai", "gemini", "groq"],
+    "code_review": ["openai", "gemini"],
+    "reasoning": ["openai", "groq", "gemini", "openrouter", "ollama"],
+    "rag": ["openai", "gemini", "openrouter", "groq"],
+    "embedding": ["ollama", "openai"]
 }
+
+def get_capability_priorities() -> Dict[str, List[Dict[str, str]]]:
+    result: Dict[str, List[Dict[str, str]]] = {}
+    for cap, providers in RAW_CAPABILITY_PROVIDER_CHAINS.items():
+        result[cap] = [
+            {"provider": p, "model": ProviderModel.resolve_model(p, cap)}
+            for p in providers
+        ]
+    return result
+
+class DynamicCapabilityPriorities(dict):
+    """
+    Dynamic dictionary wrapper that resolves models at runtime via ProviderModel.resolve_model().
+    """
+    def __getitem__(self, key: Any) -> Any:
+        priorities = get_capability_priorities()
+        k = str(key).lower()
+        if k in priorities:
+            return priorities[k]
+        return priorities.get("chat", [])
+
+    def get(self, key: Any, default: Any = None) -> Any:
+        priorities = get_capability_priorities()
+        k = str(key).lower()
+        if k in priorities:
+            return priorities[k]
+        return default if default is not None else priorities.get("chat", [])
+
+    def items(self) -> Any:
+        return get_capability_priorities().items()
+
+    def values(self) -> Any:
+        return get_capability_priorities().values()
+
+    def keys(self) -> Any:
+        return get_capability_priorities().keys()
+
+    def __contains__(self, key: object) -> bool:
+        return str(key).lower() in RAW_CAPABILITY_PROVIDER_CHAINS
+
+DEFAULT_CAPABILITY_PRIORITIES = DynamicCapabilityPriorities()

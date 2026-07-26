@@ -1,0 +1,17 @@
+{
+  "name": "cheap",
+  "description": "Low cost policy profile prioritizing free tier and cheap open source providers",
+  "priorities": {
+    "chat": ["groq", "ollama", "openrouter", "gemini"],
+    "reasoning": ["groq", "ollama", "gemini"],
+    "summarization": ["groq", "ollama"],
+    "embedding": ["ollama", "openai"]
+  },
+  "timeouts": {
+    "default": 20.0
+  },
+  "retries": {
+    "default": 1
+  },
+  "cooldown": 30.0
+}

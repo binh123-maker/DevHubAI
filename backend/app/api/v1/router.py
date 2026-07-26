@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import auth, chats, documents, folders, health, search, users, workspaces
+from app.api.v1 import auth, chats, dashboard, documents, folders, health, search, system, users, workspaces
 
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["health"])
@@ -9,5 +9,8 @@ api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(workspaces.router, prefix="/workspaces", tags=["workspaces"])
 api_router.include_router(folders.router, prefix="/folders", tags=["folders"])
 api_router.include_router(documents.router, prefix="/documents", tags=["documents"])
+api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 api_router.include_router(search.router, prefix="/search", tags=["search"])
 api_router.include_router(chats.router, prefix="/chats", tags=["chats"])
+api_router.include_router(system.router, prefix="/system", tags=["system"])
+
