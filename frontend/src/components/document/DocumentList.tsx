@@ -1,14 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
-import { FileText, MoreHorizontal, Trash2, Pencil, Loader2, AlertCircle, CheckCircle, ExternalLink, X, Search, Filter, ArrowDownUp, ArrowUp, ArrowDown } from "lucide-react"
+import { FileText, MoreHorizontal, Trash2, Pencil, CheckCircle, ExternalLink, X, Search, Filter, ArrowDownUp, ArrowUp, ArrowDown } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 
 import { getApiErrorMessage } from "@/api/axios"
 import { type Document, documentApi } from "@/api/document.api"
+import { DocumentStatusBadge, isDocumentProcessing } from "@/utils/documentStatus"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -93,7 +93,7 @@ export function DocumentList({ workspaceId, folderId }: DocumentListProps) {
     // Poll every 3 seconds if there are documents currently processing
     refetchInterval: (query) => {
       const docs = query.state.data as Document[] | undefined;
-      const needsPolling = docs?.some((d) => d.status === "UPLOADING" || d.status === "PROCESSING")
+      const needsPolling = docs?.some((d) => isDocumentProcessing(d.status))
       return needsPolling ? 3000 : false
     },
   })
@@ -102,8 +102,9 @@ export function DocumentList({ workspaceId, folderId }: DocumentListProps) {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => documentApi.delete(id),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["documents", workspaceId] })
+      void queryClient.invalidateQueries({ queryKey: ["documents"] })
       void queryClient.invalidateQueries({ queryKey: ["workspaces", workspaceId] })
+      void queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] })
       void queryClient.invalidateQueries({ queryKey: ["dashboardData"] })
       setDocToDelete(null)
       setError(null)
@@ -116,7 +117,8 @@ export function DocumentList({ workspaceId, folderId }: DocumentListProps) {
     mutationFn: ({ id, title, description }: { id: string; title: string; description: string | null }) =>
       documentApi.update(id, { title, description }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["documents", workspaceId] })
+      void queryClient.invalidateQueries({ queryKey: ["documents"] })
+      void queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] })
       closeRenameModal()
       setError(null)
       setSuccessMessage("Tên tài liệu đã được cập nhật thành công.")
@@ -147,8 +149,9 @@ export function DocumentList({ workspaceId, folderId }: DocumentListProps) {
   const bulkDeleteMutation = useMutation({
     mutationFn: (ids: string[]) => documentApi.bulkDelete(ids),
     onSuccess: (_data, ids) => {
-      void queryClient.invalidateQueries({ queryKey: ["documents", workspaceId] })
+      void queryClient.invalidateQueries({ queryKey: ["documents"] })
       void queryClient.invalidateQueries({ queryKey: ["workspaces", workspaceId] })
+      void queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] })
       void queryClient.invalidateQueries({ queryKey: ["dashboardData"] })
       setSelectedIds(new Set())
       setBulkDeleteOpen(false)
@@ -222,20 +225,7 @@ export function DocumentList({ workspaceId, folderId }: DocumentListProps) {
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "UPLOADING":
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-600 border-yellow-200"><Loader2 className="mr-1 h-3 w-3 animate-spin" /> Đang tải lên</Badge>
-      case "PROCESSING":
-        return <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200"><Loader2 className="mr-1 h-3 w-3 animate-spin" /> Đang xử lý</Badge>
-      case "PROCESSED":
-        return <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200"><CheckCircle className="mr-1 h-3 w-3" /> Đã xử lý</Badge>
-      case "FAILED":
-        return <Badge variant="destructive"><AlertCircle className="mr-1 h-3 w-3" /> Thất bại</Badge>
-      default:
-        return <Badge variant="secondary">{status}</Badge>
-    }
-  }
+
 
   const selectedCount = selectedIds.size
 
@@ -420,7 +410,7 @@ export function DocumentList({ workspaceId, folderId }: DocumentListProps) {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {getStatusBadge(doc.status)}
+                    <DocumentStatusBadge status={doc.status} useShortLabel />
                   </TableCell>
                   <TableCell className="uppercase text-xs font-semibold text-muted-foreground">
                     {doc.file_type}

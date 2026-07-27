@@ -3,6 +3,7 @@ import { AlertCircle, ArrowLeft, Loader2 } from "lucide-react"
 import { Link, useParams } from "react-router-dom"
 
 import { documentApi } from "@/api/document.api"
+import { isDocumentProcessed, isDocumentProcessing } from "@/utils/documentStatus"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useCitationNavigation } from "@/hooks/useCitationNavigation"
@@ -29,7 +30,7 @@ export default function DocumentViewerPage() {
     enabled: Boolean(id),
     refetchInterval: (query) => {
       const doc = query.state.data
-      return doc && (doc.status === "UPLOADING" || doc.status === "PROCESSING") ? 2000 : false
+      return doc && isDocumentProcessing(doc.status) ? 2000 : false
     },
   })
 
@@ -40,7 +41,7 @@ export default function DocumentViewerPage() {
       const res = await documentApi.getChunks(id!)
       return res.data
     },
-    enabled: Boolean(id) && document?.status === "PROCESSED",
+    enabled: Boolean(id) && isDocumentProcessed(document?.status),
   })
 
   // 3. Fetch URL Resource details (if URL type)
@@ -62,7 +63,7 @@ export default function DocumentViewerPage() {
       const res = await documentApi.getStructure(id!)
       return res.data
     },
-    enabled: Boolean(id) && document?.status === "PROCESSED",
+    enabled: Boolean(id) && isDocumentProcessed(document?.status),
   })
 
   // Retry processing mutation (Part 23)
@@ -72,7 +73,8 @@ export default function DocumentViewerPage() {
       return res.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["documents", id] })
+      void queryClient.invalidateQueries({ queryKey: ["documents"] })
+      void queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] })
     },
   })
 
@@ -129,7 +131,7 @@ export default function DocumentViewerPage() {
       </div>
 
       {/* Processing Monitor for non-PROCESSED status (Parts 10, 11, 24) */}
-      {document.status !== "PROCESSED" && (
+      {!isDocumentProcessed(document.status) && (
         <ProcessingMonitor
           status={document.status}
           onRetry={() => retryMutation.mutate()}
@@ -138,7 +140,7 @@ export default function DocumentViewerPage() {
       )}
 
       {/* Smart Viewer Routing (Parts 4, 6, 7) */}
-      {document.status === "PROCESSED" && (
+      {isDocumentProcessed(document.status) && (
         <div>
           {urlResource ? (
             <WebResourceViewer

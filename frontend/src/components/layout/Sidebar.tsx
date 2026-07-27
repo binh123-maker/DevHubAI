@@ -45,25 +45,25 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`sticky top-0 h-screen shrink-0 border-r border-border/60 bg-card/70 backdrop-blur-md transition-all duration-300 z-30 flex flex-col justify-between ${
-        isCollapsed ? "w-16 p-2" : "w-64 p-4"
+      className={`sticky top-0 h-screen shrink-0 border-r border-border/40 bg-card/60 backdrop-blur-xl transition-all duration-300 z-30 flex flex-col justify-between ${
+        isCollapsed ? "w-16 p-2" : "w-64 p-3 sm:p-4"
       }`}
     >
       {/* 1. Fixed Top Header & Logo */}
       <div className="flex items-center justify-between px-2 py-1 pb-3 shrink-0 border-b border-border/40 mb-3">
         {!isCollapsed && (
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-extrabold shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-primary to-indigo-600 text-primary-foreground font-extrabold shadow-sm">
               D
             </div>
-            <span className="text-lg font-extrabold tracking-tight text-primary">DevHub AI</span>
+            <span className="text-base font-extrabold tracking-tight text-foreground">DevHub AI</span>
           </div>
         )}
         <Button
           variant="ghost"
           size="icon"
           onClick={toggleCollapse}
-          className="h-8 w-8 text-muted-foreground hover:text-foreground hidden md:flex"
+          className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground hidden md:flex"
           title={isCollapsed ? "Mở rộng sidebar" : "Thu gọn sidebar"}
         >
           {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
@@ -72,7 +72,7 @@ export function Sidebar() {
 
       {/* 2. Scrollable Navigation List */}
       <div className="space-y-4 flex-1 overflow-y-auto scrollbar-hover pr-1 contain-layout-paint">
-        <nav className="space-y-1">
+        <nav className="space-y-1.5">
           {/* Group 1: Overview & Quick Actions */}
           <SidebarGroup title="Tổng quan" isCollapsed={isCollapsed} collapsible={false}>
             <SidebarItem
@@ -92,18 +92,7 @@ export function Sidebar() {
             />
           </SidebarGroup>
 
-          {/* Group 2: Statistics KPI */}
-          <SidebarGroup title="Chỉ số Thống kê" isCollapsed={isCollapsed}>
-            <SidebarItem
-              icon={BarChart3}
-              label="Chỉ số Tri thức KPI"
-              isActive={isDashboardPage && activeSectionId === "statistics"}
-              isCollapsed={isCollapsed}
-              onClick={() => handleNavClick("statistics", "/workspaces")}
-            />
-          </SidebarGroup>
-
-          {/* Group 3: Knowledge Management */}
+          {/* Group 2: Knowledge Management */}
           <SidebarGroup title="Quản lý tri thức" isCollapsed={isCollapsed}>
             <SidebarItem
               icon={FolderOpen}
@@ -121,8 +110,15 @@ export function Sidebar() {
             />
           </SidebarGroup>
 
-          {/* Group 4: Analytics & Activity */}
+          {/* Group 3: Analytics & Activity */}
           <SidebarGroup title="Phân tích & Thống kê" isCollapsed={isCollapsed}>
+            <SidebarItem
+              icon={BarChart3}
+              label="Chỉ số Tri thức KPI"
+              isActive={isDashboardPage && activeSectionId === "statistics"}
+              isCollapsed={isCollapsed}
+              onClick={() => handleNavClick("statistics", "/workspaces")}
+            />
             <SidebarItem
               icon={Sparkles}
               label="Learning Analytics"
@@ -157,19 +153,19 @@ export function Sidebar() {
             />
           </SidebarGroup>
 
-          {/* Group 5: Account & Profile */}
-          <SidebarGroup title="Tài khoản" isCollapsed={isCollapsed}>
+          {/* Group 5: Account & Settings */}
+          <SidebarGroup title="Tài khoản & Cài đặt" isCollapsed={isCollapsed}>
             <SidebarItem
               icon={User}
-              label="Hồ sơ cá nhân"
-              to="/profile"
-              isActive={location.pathname === "/profile"}
+              label="Account & Settings"
+              to="/settings"
+              isActive={location.pathname === "/settings" || location.pathname === "/profile"}
               isCollapsed={isCollapsed}
             />
           </SidebarGroup>
 
-          {/* Group 6: Extensible Learning Tools (Future Modules) */}
-          <SidebarGroup title="Công cụ học tập (Sắp có)" isCollapsed={isCollapsed}>
+          {/* Group 6: Extensible Learning Tools */}
+          <SidebarGroup title="Công cụ học tập (Soon)" isCollapsed={isCollapsed}>
             <SidebarItem
               icon={Layers}
               label="Flashcards"
@@ -190,13 +186,13 @@ export function Sidebar() {
 
       {/* User Quick Info at bottom */}
       {!isCollapsed && user && (
-        <div className="border-t border-border/50 pt-3 mt-2 px-2">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary font-bold text-xs">
+        <div className="border-t border-border/40 pt-3 mt-2 px-1">
+          <div className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-accent/40 transition-colors">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/20 text-primary font-bold text-xs">
               {user.full_name?.charAt(0) || user.email.charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-semibold truncate">{user.full_name || "User"}</p>
+              <p className="text-xs font-bold truncate">{user.full_name || "User"}</p>
               <p className="text-[10px] text-muted-foreground truncate">{user.email}</p>
             </div>
           </div>

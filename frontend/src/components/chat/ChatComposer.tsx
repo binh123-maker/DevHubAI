@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from "react"
-import { Send, Paperclip, AtSign, Mic, Sparkles, Square, X, FileText } from "lucide-react"
+import { Send, Plus, AtSign, Mic, Sparkles, Square, X, FileText } from "lucide-react"
 import { SlashCommandPopover, SlashCommand } from "./SlashCommandPopover"
 import { MentionPopover } from "./MentionPopover"
 import { Button } from "@/components/ui/button"
@@ -59,16 +59,16 @@ export const ChatComposer = React.memo(function ChatComposer({
     }
   }, [input, draftKey])
 
-  // Auto-focus input on mount and after send
+  // Auto-focus input on mount
   useEffect(() => {
     textareaRef.current?.focus()
   }, [activeChatId, isLoading])
 
-  // Auto-resize textarea height up to 200px
+  // Auto-resize textarea height up to 220px
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto"
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 220)}px`
     }
   }, [input])
 
@@ -135,7 +135,7 @@ export const ChatComposer = React.memo(function ChatComposer({
   ]
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-3 p-2 sm:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] relative">
+    <div className="w-full max-w-[920px] mx-auto space-y-2 p-2 sm:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] relative">
       {/* Hidden File Input */}
       <input
         type="file"
@@ -164,7 +164,7 @@ export const ChatComposer = React.memo(function ChatComposer({
         />
       )}
 
-      {/* Quick Prompt Chips (Placed 12px directly above Composer) */}
+      {/* Quick Prompt Chips */}
       {showChips && onPromptChipClick && (
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
           <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
@@ -172,7 +172,7 @@ export const ChatComposer = React.memo(function ChatComposer({
             <button
               key={idx}
               onClick={() => onPromptChipClick(chip)}
-              className="inline-flex items-center gap-1 shrink-0 rounded-full border border-border/60 bg-card px-3 py-1 text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-accent transition-all cursor-pointer shadow-2xs"
+              className="inline-flex items-center gap-1 shrink-0 rounded-full border border-border/60 bg-card px-3 py-1 text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-accent transition-all cursor-pointer shadow-2xs click-press"
             >
               <span>{chip}</span>
             </button>
@@ -186,10 +186,10 @@ export const ChatComposer = React.memo(function ChatComposer({
           {attachedFiles.map((file, idx) => (
             <div
               key={idx}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs text-primary font-medium shadow-2xs"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs text-primary font-semibold shadow-2xs"
             >
               <FileText className="h-3.5 w-3.5" />
-              <span className="truncate max-w-[120px]">{file.name}</span>
+              <span className="truncate max-w-[140px]">{file.name}</span>
               {onRemoveFile && (
                 <button
                   onClick={() => onRemoveFile(idx)}
@@ -203,8 +203,8 @@ export const ChatComposer = React.memo(function ChatComposer({
         </div>
       )}
 
-      {/* Composer Input Box */}
-      <div className="relative rounded-2xl border border-border/80 bg-card shadow-lg backdrop-blur-md focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+      {/* Claude-style Composer Container (24px radius, sleek border & shadow) */}
+      <div className="relative rounded-[24px] border border-border/80 bg-card shadow-lg backdrop-blur-md focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
         <textarea
           ref={textareaRef}
           rows={1}
@@ -213,35 +213,23 @@ export const ChatComposer = React.memo(function ChatComposer({
           onKeyDown={handleKeyDown}
           placeholder="Hỏi AI bất kỳ điều gì (Gõ '/' cho lệnh, '@' để nhắc Workspace/Tài liệu)..."
           disabled={disabled || isLoading}
-          className="w-full resize-none border-0 bg-transparent px-4 pt-3.5 pb-12 text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-0 max-h-[200px] scrollbar-thin"
+          className="w-full resize-none border-0 bg-transparent px-5 pt-4 pb-14 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-0 max-h-[220px] scrollbar-thin leading-relaxed"
         />
 
-        {/* Toolbar Footer */}
-        <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between pointer-events-auto border-t border-border/30 pt-1.5">
+        {/* Embedded Toolbar Footer */}
+        <div className="absolute bottom-2.5 left-3.5 right-3.5 flex items-center justify-between border-t border-border/30 pt-2">
           <div className="flex items-center gap-1">
             <Button
               type="button"
               variant="ghost"
               size="icon"
               onClick={() => fileInputRef.current?.click()}
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
-              title="Đính kèm tài liệu (PDF, DOCX, TXT)"
+              className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground"
+              title="Đính kèm tài liệu (+)"
             >
-              <Paperclip className="h-4 w-4" />
+              <Plus className="h-4 w-4" />
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                setInput("/ ")
-                textareaRef.current?.focus()
-              }}
-              className="h-8 w-8 text-muted-foreground hover:text-foreground font-mono font-bold text-xs"
-              title="Lệnh Slash (/)"
-            >
-              /
-            </Button>
+
             <Button
               type="button"
               variant="ghost"
@@ -250,23 +238,24 @@ export const ChatComposer = React.memo(function ChatComposer({
                 setInput(input + "@")
                 textareaRef.current?.focus()
               }}
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
-              title="Nhắc tên Workspace/Tài liệu (@)"
+              className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground"
+              title="Nhắc tên Workspace (@)"
             >
               <AtSign className="h-4 w-4" />
             </Button>
+
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-foreground hidden sm:flex"
-              title="Nhập bằng giọng nói (Voice)"
+              className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground hidden sm:flex"
+              title="Voice Input"
             >
               <Mic className="h-4 w-4" />
             </Button>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             {/* Stop Streaming Button */}
             {isLoading && onStop && (
               <Button
@@ -274,7 +263,7 @@ export const ChatComposer = React.memo(function ChatComposer({
                 variant="destructive"
                 size="sm"
                 onClick={onStop}
-                className="h-8 px-2.5 text-xs gap-1 shadow-sm rounded-xl font-bold"
+                className="h-8 px-3 text-xs gap-1 shadow-xs rounded-xl font-bold"
                 title="Dừng phản hồi AI"
               >
                 <Square className="h-3 w-3 fill-current" />
@@ -291,7 +280,7 @@ export const ChatComposer = React.memo(function ChatComposer({
                 onSend()
               }}
               disabled={!input.trim() || isLoading || disabled}
-              className="h-8 px-3 text-xs gap-1.5 shadow-sm rounded-xl font-bold"
+              className="h-8 px-4 text-xs gap-1.5 shadow-sm rounded-xl font-bold bg-primary text-primary-foreground hover:bg-primary/90 click-press"
             >
               <span>{isLoading ? "Đang trả lời..." : "Gửi"}</span>
               <Send className="h-3.5 w-3.5" />
@@ -302,4 +291,3 @@ export const ChatComposer = React.memo(function ChatComposer({
     </div>
   )
 })
-

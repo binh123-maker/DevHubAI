@@ -1,9 +1,10 @@
 import { useState } from "react"
-import { Menu, Search, Bell, User, LogOut, Settings, Keyboard, HelpCircle, Info, CheckCheck, Trash2, Globe } from "lucide-react"
+import { Menu, Search, Bell, User, LogOut, Keyboard, HelpCircle, Info, CheckCheck, Trash2, Globe, SunMoon } from "lucide-react"
 import { useNavigate, Link } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
 import { useNavigation } from "@/contexts/NavigationContext"
 import { useGlobalSearch } from "@/contexts/GlobalSearchContext"
+import { useTheme } from "@/contexts/ThemeContext"
 import { Breadcrumb } from "./Breadcrumb"
 import { ThemeToggle } from "./ThemeToggle"
 import { KeyboardShortcutsModal } from "./KeyboardShortcutsModal"
@@ -27,6 +28,7 @@ interface NotificationItem {
 export function AppHeader() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
+  const { theme, setTheme } = useTheme()
   const { setIsMobileOpen } = useNavigation()
   const { open: openSearch } = useGlobalSearch()
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
@@ -77,11 +79,11 @@ export function AppHeader() {
           {/* Global Search Button */}
           <button
             onClick={openSearch}
-            className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground hover:border-primary/40 hover:bg-accent hover:text-foreground transition-all"
+            className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground hover:border-primary/40 hover:bg-accent hover:text-foreground transition-all click-press"
           >
             <Search className="h-3.5 w-3.5" />
             <span className="hidden sm:inline font-medium">Tìm kiếm...</span>
-            <kbd className="hidden sm:inline-flex items-center rounded border border-border/80 bg-muted px-1.5 text-[10px] font-mono text-muted-foreground">
+            <kbd className="hidden sm:inline-flex items-center rounded-md border border-border/80 bg-muted px-1.5 text-[10px] font-mono text-muted-foreground">
               Ctrl K
             </kbd>
           </button>
@@ -92,7 +94,7 @@ export function AppHeader() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="relative h-9 w-9 text-muted-foreground hover:text-foreground"
+                className="relative h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground"
                 title="Thông báo"
               >
                 <Bell className="h-4 w-4" />
@@ -104,7 +106,7 @@ export function AppHeader() {
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80 p-0 border border-border/60 bg-popover text-popover-foreground shadow-2xl rounded-2xl">
+            <DropdownMenuContent align="end" className="w-80 p-0 border border-border/60 bg-popover text-popover-foreground shadow-2xl rounded-2xl animate-in fade-in zoom-in-95 duration-150">
               <div className="flex items-center justify-between p-3 border-b border-border/40">
                 <span className="text-xs font-bold flex items-center gap-1.5">
                   <Bell className="h-3.5 w-3.5 text-primary" />
@@ -139,7 +141,7 @@ export function AppHeader() {
                   notifications.map((n) => (
                     <div
                       key={n.id}
-                      className={`p-2.5 rounded-lg text-xs space-y-1 transition-colors ${
+                      className={`p-2.5 rounded-xl text-xs space-y-1 transition-colors ${
                         n.read ? "bg-card/40 opacity-70" : "bg-primary/5 font-medium border-l-2 border-primary"
                       }`}
                     >
@@ -152,60 +154,75 @@ export function AppHeader() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Theme Toggle */}
+          {/* Quick Theme Toggle */}
           <ThemeToggle />
 
-          {/* User Avatar Dropdown Menu */}
+          {/* User Avatar Dropdown Menu - Modern SaaS Cleaned Menu */}
           {user && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full ring-2 ring-primary/20 hover:ring-primary/40">
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full ring-2 ring-primary/20 hover:ring-primary/40 click-press">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-xs">
                     {user.full_name?.charAt(0) || user.email.charAt(0).toUpperCase()}
                   </div>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 p-1 border border-border/60 bg-popover text-popover-foreground shadow-2xl rounded-2xl">
+              <DropdownMenuContent align="end" className="w-56 p-1 border border-border/60 bg-popover text-popover-foreground shadow-2xl rounded-2xl animate-in fade-in zoom-in-95 duration-150">
                 <DropdownMenuLabel className="font-normal p-2">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-semibold leading-none">{user.full_name || "User"}</p>
-                    <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                    <p className="text-sm font-bold leading-none">{user.full_name || "User"}</p>
+                    <p className="text-xs leading-none text-muted-foreground truncate">{user.email}</p>
                   </div>
                 </DropdownMenuLabel>
+
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild className="cursor-pointer text-xs gap-2 py-2">
-                  <Link to="/profile">
+
+                {/* 1. Single Account & Settings Link */}
+                <DropdownMenuItem asChild className="cursor-pointer text-xs gap-2 py-2 rounded-xl">
+                  <Link to="/settings">
                     <User className="h-4 w-4 text-primary" />
-                    <span>Hồ sơ cá nhân</span>
+                    <span className="font-semibold">My Account</span>
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild className="cursor-pointer text-xs gap-2 py-2">
-                  <Link to="/profile">
-                    <Settings className="h-4 w-4 text-muted-foreground" />
-                    <span>Cài đặt hệ thống</span>
-                  </Link>
+
+                <DropdownMenuSeparator />
+
+                {/* 2. Appearance quick switch */}
+                <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="cursor-pointer text-xs gap-2 py-2 rounded-xl">
+                  <SunMoon className="h-4 w-4 text-amber-500" />
+                  <span>Giao diện: {theme === "dark" ? "Chế độ Tối" : "Chế độ Sáng"}</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShortcutsOpen(true)} className="cursor-pointer text-xs gap-2 py-2">
-                  <Keyboard className="h-4 w-4 text-indigo-500" />
-                  <span>Bảng Phím tắt (?)</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer text-xs gap-2 py-2">
+
+                {/* 3. Language */}
+                <DropdownMenuItem className="cursor-pointer text-xs gap-2 py-2 rounded-xl">
                   <Globe className="h-4 w-4 text-emerald-500" />
                   <span>Ngôn ngữ: Tiếng Việt</span>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="cursor-pointer text-xs gap-2 py-2 text-muted-foreground">
+
+                {/* 4. Keyboard Shortcuts */}
+                <DropdownMenuItem onClick={() => setShortcutsOpen(true)} className="cursor-pointer text-xs gap-2 py-2 rounded-xl">
+                  <Keyboard className="h-4 w-4 text-indigo-500" />
+                  <span>Phím tắt (Shortcuts)</span>
+                </DropdownMenuItem>
+
+                {/* 5. Help Center */}
+                <DropdownMenuItem className="cursor-pointer text-xs gap-2 py-2 rounded-xl text-muted-foreground">
                   <HelpCircle className="h-4 w-4" />
-                  <span>Trung tâm Trợ giúp</span>
+                  <span>Help Center</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer text-xs gap-2 py-2 text-muted-foreground">
+
+                {/* 6. About */}
+                <DropdownMenuItem className="cursor-pointer text-xs gap-2 py-2 rounded-xl text-muted-foreground">
                   <Info className="h-4 w-4" />
-                  <span>Về DevHub AI (v1.0)</span>
+                  <span>About DevHub AI</span>
                 </DropdownMenuItem>
+
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-xs gap-2 py-2 text-destructive focus:bg-destructive/10">
+
+                {/* 7. Logout */}
+                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-xs gap-2 py-2 rounded-xl text-destructive focus:bg-destructive/10">
                   <LogOut className="h-4 w-4" />
-                  <span>Đăng xuất</span>
+                  <span className="font-semibold">Logout</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

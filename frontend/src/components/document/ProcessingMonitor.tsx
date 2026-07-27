@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { CheckCircle2, Clock, Loader2, AlertCircle, RefreshCw, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import { isDocumentProcessed, isDocumentProcessing, isDocumentFailed, normalizeDocumentStatus, DocumentStatus } from "@/utils/documentStatus"
 
 interface ProcessingMonitorProps {
   status: string
@@ -14,7 +15,7 @@ export function ProcessingMonitor({ status, errorMessage, onRetry, isRetrying = 
   const [seconds, setSeconds] = useState(0)
 
   useEffect(() => {
-    if (status === "PROCESSING" || status === "UPLOADING") {
+    if (isDocumentProcessing(status)) {
       const timer = setInterval(() => setSeconds((s) => s + 1), 1000)
       return () => clearInterval(timer)
     }
@@ -29,14 +30,16 @@ export function ProcessingMonitor({ status, errorMessage, onRetry, isRetrying = 
     { key: "PROCESSED", label: "Completed", progress: 100 },
   ]
 
+  const normStatus = normalizeDocumentStatus(status)
+
   const getStepStatus = (stepKey: string) => {
-    if (status === "PROCESSED") return "completed"
-    if (status === "FAILED") return "failed"
-    if (status === stepKey || (status === "PROCESSING" && stepKey === "CHUNKING")) return "active"
+    if (isDocumentProcessed(status)) return "completed"
+    if (isDocumentFailed(status)) return "failed"
+    if (normStatus === DocumentStatus.PROCESSING && stepKey === "CHUNKING") return "active"
     return "pending"
   }
 
-  const currentProgress = status === "PROCESSED" ? 100 : status === "FAILED" ? 100 : Math.min(85, 20 + seconds * 5)
+  const currentProgress = isDocumentProcessed(status) ? 100 : isDocumentFailed(status) ? 100 : Math.min(85, 20 + seconds * 5)
 
   return (
     <div className="rounded-2xl border border-border/60 bg-card/80 p-4 space-y-4 shadow-sm">
@@ -86,7 +89,7 @@ export function ProcessingMonitor({ status, errorMessage, onRetry, isRetrying = 
       </div>
 
       {/* Failed Diagnostics & Retry Button (Parts 11 & 23) */}
-      {status === "FAILED" && (
+      {isDocumentFailed(status) && (
         <div className="p-3 rounded-xl border border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs space-y-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <p className="font-bold flex items-center gap-1">

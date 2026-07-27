@@ -1,10 +1,11 @@
 import { Draggable } from "@hello-pangea/dnd"
-import { FileText, Calendar, Eye, FileCode, Globe, Layers, MessageSquare, ExternalLink, RefreshCw, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react"
+import { FileText, Calendar, Eye, FileCode, Globe, Layers, MessageSquare, ExternalLink, RefreshCw } from "lucide-react"
 import { Link } from "react-router-dom"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { DocumentStatusBadge, isDocumentFailed } from "@/utils/documentStatus"
 import { documentApi, type Document } from "@/api/document.api"
 
 interface KanbanCardProps {
@@ -49,31 +50,6 @@ export function KanbanCard({ document, index, workspaceName, folderName }: Kanba
     } catch {
       return dateStr
     }
-  }
-
-  const getStatusBadge = (status: string) => {
-    if (status === "PROCESSED") {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-          <CheckCircle2 className="h-3 w-3" />
-          Ready for RAG
-        </span>
-      )
-    }
-    if (status === "PROCESSING" || status === "UPLOADING") {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 border border-amber-500/20">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          Processing RAG
-        </span>
-      )
-    }
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-bold text-destructive border border-destructive/20">
-        <AlertTriangle className="h-3 w-3" />
-        Failed
-      </span>
-    )
   }
 
   const getLearningBadge = (ks: string) => {
@@ -131,7 +107,7 @@ export function KanbanCard({ document, index, workspaceName, folderName }: Kanba
 
               {/* Status Badges Row */}
               <div className="flex items-center gap-1.5 flex-wrap">
-                {getStatusBadge(document.status)}
+                <DocumentStatusBadge status={document.status} />
                 {getLearningBadge(document.kanban_status)}
                 {document.total_chunks !== undefined && document.total_chunks > 0 && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/10 px-2 py-0.5 text-[10px] font-mono font-bold text-indigo-600 border border-indigo-500/20">
@@ -171,7 +147,7 @@ export function KanbanCard({ document, index, workspaceName, folderName }: Kanba
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
-                  {document.status === "FAILED" && (
+                  {isDocumentFailed(document.status) && (
                     <Button
                       size="icon"
                       variant="ghost"

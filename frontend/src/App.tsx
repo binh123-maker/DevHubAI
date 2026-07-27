@@ -9,6 +9,7 @@ import LandingPage from "@/pages/LandingPage"
 import LoginPage from "@/pages/LoginPage"
 import ProfilePage from "@/pages/ProfilePage"
 import RegisterPage from "@/pages/RegisterPage"
+import SettingsPage from "@/pages/SettingsPage"
 import WorkspaceDetailPage from "@/pages/WorkspaceDetailPage"
 import WorkspaceListPage from "@/pages/WorkspaceListPage"
 
@@ -32,6 +33,7 @@ export default function App() {
             <Route path="/documents/:id" element={<DocumentViewerPage />} />
             <Route path="/history/:chatId?" element={<ChatHistoryPage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Route>
         </Route>
 
