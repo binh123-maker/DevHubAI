@@ -9,7 +9,7 @@ export interface SlashCommand {
   template: string
 }
 
-export const SLASH_COMMANDS: SlashCommand[] = [
+const SLASH_COMMANDS: SlashCommand[] = [
   {
     cmd: "/summarize",
     label: "Tóm tắt tài liệu",

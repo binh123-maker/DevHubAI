@@ -5,15 +5,16 @@ import rehypeKatex from "rehype-katex"
 import rehypeRaw from "rehype-raw"
 import "katex/dist/katex.min.css"
 import { motion } from "framer-motion"
-import { Bot, User, ThumbsUp, ThumbsDown, Copy, RefreshCw, Bookmark, Check, ChevronDown, Globe, FolderOpen } from "lucide-react"
+import { Bot, User, ThumbsUp, ThumbsDown, Copy, RefreshCw, Bookmark, Check, ChevronDown, Globe, FolderOpen, ShieldCheck } from "lucide-react"
 
-import type { ChatMessage } from "@/types/chat.types"
-import { CitationPanel } from "./CitationPanel"
+import type { ChatMessage, Citation } from "@/types/chat.types"
 import { AnswerSourcesSummary } from "./AnswerSourcesSummary"
 import { MessageActions } from "./MessageActions"
-import { SuggestedFollowUps } from "./SuggestedFollowUps"
 import { CodeBlock } from "./CodeBlock"
 import { InlineCitationPopover } from "./InlineCitationPopover"
+import { CitationCard } from "./CitationCard"
+import { AITraceabilityDrawer } from "./AITraceabilityDrawer"
+import { SourceComparisonPanel } from "./SourceComparisonPanel"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 
@@ -40,6 +41,9 @@ export function ChatMessageItem({
   const [feedback, setFeedback] = useState<"up" | "down" | null>(null)
   const [isCopied, setIsCopied] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
+  const [showTraceability, setShowTraceability] = useState(false)
+  const [compareCitation, setCompareCitation] = useState<Citation | null>(null)
+  const [isCitationsExpanded, setIsCitationsExpanded] = useState(false)
 
   const handleCopyMarkdown = () => {
     navigator.clipboard.writeText(message.content)
@@ -158,9 +162,39 @@ export function ChatMessageItem({
           </ReactMarkdown>
         </div>
 
-        {/* Citations Panel */}
+        {/* Enterprise Compact Citation Cards (Top 3 default, max-h 350px scrollable) */}
         {!isUser && message.citations && message.citations.length > 0 && (
-          <CitationPanel citations={message.citations} />
+          <div className="space-y-2 pt-2 border-t border-border/30">
+            <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <span>📚 Sources (RAG Evidence)</span>
+              </span>
+              <div className="flex items-center gap-2">
+                <span>{message.citations.length} nguồn tài liệu</span>
+                {message.citations.length > 3 && (
+                  <button
+                    onClick={() => setIsCitationsExpanded(!isCitationsExpanded)}
+                    className="text-primary hover:underline font-bold transition-colors flex items-center gap-0.5 text-[11px]"
+                  >
+                    {isCitationsExpanded ? "Thu gọn ▲" : `Xem thêm (${message.citations.length - 3}) ▼`}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className={`grid gap-2.5 transition-all duration-200 ${
+              isCitationsExpanded ? "max-h-[350px] overflow-y-auto pr-1 scrollbar-thin" : ""
+            }`}>
+              {(isCitationsExpanded ? message.citations : message.citations.slice(0, 3)).map((cit, idx) => (
+                <CitationCard
+                  key={idx}
+                  citation={cit}
+                  rankIndex={idx}
+                  onCompareClick={(c) => setCompareCitation(c)}
+                />
+              ))}
+            </div>
+          </div>
         )}
 
         {/* AI Action Chips */}
@@ -234,6 +268,18 @@ export function ChatMessageItem({
                 <Bookmark className="h-3.5 w-3.5" />
                 <span>{isSaved ? "Đã lưu" : "Lưu"}</span>
               </Button>
+
+              {/* Traceability Drawer Trigger */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowTraceability(true)}
+                className="h-7 px-2 text-[11px] gap-1 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 font-medium"
+                title="Xem lý do AI truy xuất tài liệu và tạo câu trả lời này"
+              >
+                <ShieldCheck className="h-3.5 w-3.5" />
+                <span>Tại sao AI trả lời?</span>
+              </Button>
             </div>
           </div>
         ) : (
@@ -245,10 +291,6 @@ export function ChatMessageItem({
           </div>
         )}
 
-        {/* Suggested Follow-up Questions */}
-        {!isUser && isLastAssistantMessage && (
-          <SuggestedFollowUps onFollowUpClick={onSendActionPrompt} />
-        )}
       </div>
 
       {isUser && (
@@ -256,6 +298,22 @@ export function ChatMessageItem({
           <User className="h-4 w-4 text-primary" />
         </div>
       )}
+
+      {/* AI Traceability Drawer Modal */}
+      <AITraceabilityDrawer
+        isOpen={showTraceability}
+        onClose={() => setShowTraceability(false)}
+        userQuery={message.content.slice(0, 80)}
+        citations={message.citations || []}
+      />
+
+      {/* Source Comparison Panel Modal */}
+      <SourceComparisonPanel
+        isOpen={Boolean(compareCitation)}
+        onClose={() => setCompareCitation(null)}
+        aiAnswer={message.content}
+        citation={compareCitation}
+      />
     </motion.div>
   )
 }

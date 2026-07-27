@@ -6,6 +6,8 @@ import { MobileDrawer } from "./MobileDrawer"
 import { GlobalSearchModal } from "./GlobalSearchModal"
 import { BackToTop } from "./BackToTop"
 
+import { AppErrorBoundary } from "@/components/routing/AppErrorBoundary"
+
 export function AppLayout() {
   const location = useLocation()
   const isChatRoute = location.pathname.startsWith("/history")
@@ -18,7 +20,7 @@ export function AppLayout() {
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col min-w-0 h-full overflow-hidden">
         {/* Sticky Top Header */}
-        <AppHeader />
+        {!isChatRoute && <AppHeader />}
 
         {/* Page View Body */}
         <main
@@ -28,7 +30,9 @@ export function AppLayout() {
               : "flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto overflow-y-auto"
           }
         >
-          <Outlet />
+          <AppErrorBoundary>
+            <Outlet />
+          </AppErrorBoundary>
         </main>
       </div>
 

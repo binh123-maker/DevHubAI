@@ -99,4 +99,12 @@ export const documentApi = {
   uploadUrl: (payload: UrlUploadPayload) => {
     return apiClient.post<Document>("/documents/upload-url", payload)
   },
+
+  getUrlResource: (id: string) => apiClient.get<any>(`/documents/${id}/url-resource`),
+
+  getStructure: (id: string) => apiClient.get<any[]>(`/documents/${id}/structure`),
+
+  retryProcessing: (id: string) => apiClient.post<Document>(`/documents/${id}/retry`),
+
+  getFileUrl: (id: string) => `${apiClient.defaults.baseURL || '/api/v1'}/documents/${id}/file`,
 }

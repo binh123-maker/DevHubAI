@@ -391,10 +391,10 @@ def upload_document_from_url(
     return document
 
 
-def extract_metadata(soup, fallback_url: str) -> tuple[str, str]:
+def extract_metadata(soup, fallback_url: str) -> tuple[str, str, str | None, dict]:
+    from urllib.parse import urlparse, urljoin
     title = fallback_url
     
-    # Fix #4: use attrs={} dict for robust parser-independent attribute lookup
     og_title = soup.find('meta', attrs={'property': 'og:title'})
     if og_title and og_title.get('content'):
         title = og_title['content']
@@ -410,14 +410,62 @@ def extract_metadata(soup, fallback_url: str) -> tuple[str, str]:
     if meta_desc and meta_desc.get('content'):
         desc = meta_desc['content']
     else:
-        # Fix #4: use attrs={} dict for og:description too
         og_desc = soup.find('meta', attrs={'property': 'og:description'})
         if og_desc and og_desc.get('content'):
             desc = og_desc['content']
 
-    # Fix #2: cap title to 255 chars to match DB VARCHAR column limit
+    # Preview Image (og:image / twitter:image)
+    preview_image_url = None
+    og_img = soup.find('meta', attrs={'property': 'og:image'}) or soup.find('meta', attrs={'name': 'twitter:image'})
+    if og_img and og_img.get('content'):
+        preview_image_url = urljoin(fallback_url, og_img['content'])
+
+    # Favicon
+    favicon = None
+    icon_tag = soup.find('link', attrs={'rel': lambda r: r and 'icon' in r.lower()})
+    if icon_tag and icon_tag.get('href'):
+        favicon = urljoin(fallback_url, icon_tag['href'])
+    else:
+        parsed = urlparse(fallback_url)
+        if parsed.scheme and parsed.netloc:
+            favicon = f"{parsed.scheme}://{parsed.netloc}/favicon.ico"
+
+    # Author
+    author = None
+    meta_author = soup.find('meta', attrs={'name': 'author'}) or soup.find('meta', attrs={'property': 'article:author'})
+    if meta_author and meta_author.get('content'):
+        author = meta_author['content']
+
+    # Published Date
+    pub_date = None
+    meta_date = soup.find('meta', attrs={'property': 'article:published_time'}) or soup.find('meta', attrs={'name': 'publication_date'})
+    if meta_date and meta_date.get('content'):
+        pub_date = meta_date['content']
+
+    # Canonical URL
+    canonical_url = fallback_url
+    link_canon = soup.find('link', attrs={'rel': 'canonical'})
+    if link_canon and link_canon.get('href'):
+        canonical_url = urljoin(fallback_url, link_canon['href'])
+
+    # Language
+    lang = soup.html.get('lang', 'vi') if soup.html else 'vi'
+
+    # Estimated Reading Time (assume ~200 wpm)
+    word_count = len(soup.get_text().split())
+    reading_time = f"{max(1, round(word_count / 200))} min read"
+
     title = title.strip()[:255]
-    return title, desc.strip()
+    meta_dict = {
+        "favicon": favicon,
+        "author": author,
+        "published_date": pub_date,
+        "canonical_url": canonical_url,
+        "reading_time": reading_time,
+        "language": lang,
+        "word_count": word_count,
+    }
+    return title, desc.strip(), preview_image_url, meta_dict
 
 
 def remove_noise(soup) -> None:
@@ -497,18 +545,18 @@ def normalize_markdown(md_text: str) -> str:
     return md_text.strip()
 
 
-def clean_html(html_text: str, fallback_url: str) -> tuple[str, str, str]:
+def clean_html(html_text: str, fallback_url: str) -> tuple[str, str, str, str | None, dict]:
     from bs4 import BeautifulSoup
     soup = BeautifulSoup(html_text, 'lxml')
     
-    title, desc = extract_metadata(soup, fallback_url)
+    title, desc, preview_img, meta_dict = extract_metadata(soup, fallback_url)
     remove_noise(soup)
     main_content = extract_main_content(soup)
     
     md_text = html_to_markdown(str(main_content))
     md_text = normalize_markdown(md_text)
     
-    return md_text, title, desc
+    return md_text, title, desc, preview_img, meta_dict
 
 
 def download_and_process_url(document_id: UUID, url: str) -> None:
@@ -548,7 +596,7 @@ def download_and_process_url(document_id: UUID, url: str) -> None:
                     response.read()
                     html_content = response.text
                     
-                    md_text, page_title, page_desc = clean_html(html_content, url)
+                    md_text, page_title, page_desc, preview_img, meta_dict = clean_html(html_content, url)
                     
                     content_bytes = md_text.encode('utf-8')
                     size = len(content_bytes)
@@ -584,10 +632,16 @@ def download_and_process_url(document_id: UUID, url: str) -> None:
                             parsed_markdown=md_text,
                             title=page_title,
                             description=page_desc,
+                            preview_image_url=preview_img,
+                            metadata_json=meta_dict,
                         )
                         db.add(url_res)
                         db.commit()
                         db.refresh(url_res)
+                    else:
+                        url_res.preview_image_url = preview_img
+                        url_res.metadata_json = meta_dict
+                        db.commit()
                     url_resource_id = url_res.id
                         
                 else:
@@ -757,6 +811,22 @@ def update_document_kanban_status(db: Session, user_id: UUID, document_id: UUID,
 
     document.kanban_updated_at = datetime.now(timezone.utc)
     db.commit()
+    db.refresh(document)
+    return document
+
+
+def retry_document_processing(db: Session, user_id: UUID, document_id: UUID) -> Document:
+    """Re-trigger processing for a failed document using its existing binary or URL without re-uploading."""
+    document = get_owned_document(db, user_id, document_id)
+    
+    document.status = DocumentStatus.UPLOADING
+    db.commit()
+    
+    if document.source_url:
+        download_and_process_url(document.id, document.source_url)
+    else:
+        trigger_processing_task(document.id)
+        
     db.refresh(document)
     return document
 

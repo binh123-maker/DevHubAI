@@ -48,6 +48,7 @@ export const ChatComposer = React.memo(function ChatComposer({
     if (savedDraft && !input) {
       setInput(savedDraft)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeChatId])
 
   useEffect(() => {

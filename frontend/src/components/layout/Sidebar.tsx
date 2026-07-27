@@ -29,12 +29,15 @@ export function Sidebar() {
 
   const isDashboardPage = location.pathname === "/workspaces" || location.pathname === "/"
 
-  const handleNavClick = (sectionId?: string, path?: string) => {
-    if (path && location.pathname !== path) {
+  const handleNavClick = (sectionId?: string, path: string = "/workspaces") => {
+    if (location.pathname !== path) {
       navigate(path)
+      if (sectionId) {
+        setTimeout(() => scrollToSection(sectionId), 150)
+      }
       return
     }
-    if (sectionId && isDashboardPage) {
+    if (sectionId) {
       scrollToSection(sectionId)
     }
   }
@@ -45,29 +48,29 @@ export function Sidebar() {
         isCollapsed ? "w-16 p-2" : "w-64 p-4"
       }`}
     >
-      {/* Top Header & Logo */}
-      <div className="space-y-4 flex-1 overflow-y-auto scrollbar-thin pr-1">
-        <div className="flex items-center justify-between px-2 py-1">
-          {!isCollapsed && (
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-extrabold shadow-sm">
-                D
-              </div>
-              <span className="text-lg font-extrabold tracking-tight text-primary">DevHub AI</span>
+      {/* 1. Fixed Top Header & Logo */}
+      <div className="flex items-center justify-between px-2 py-1 pb-3 shrink-0 border-b border-border/40 mb-3">
+        {!isCollapsed && (
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-extrabold shadow-sm">
+              D
             </div>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleCollapse}
-            className="h-8 w-8 text-muted-foreground hover:text-foreground hidden md:flex"
-            title={isCollapsed ? "Mở rộng sidebar" : "Thu gọn sidebar"}
-          >
-            {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-          </Button>
-        </div>
+            <span className="text-lg font-extrabold tracking-tight text-primary">DevHub AI</span>
+          </div>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleCollapse}
+          className="h-8 w-8 text-muted-foreground hover:text-foreground hidden md:flex"
+          title={isCollapsed ? "Mở rộng sidebar" : "Thu gọn sidebar"}
+        >
+          {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+        </Button>
+      </div>
 
-        {/* Navigation Groups */}
+      {/* 2. Scrollable Navigation List */}
+      <div className="space-y-4 flex-1 overflow-y-auto scrollbar-hover pr-1 contain-layout-paint">
         <nav className="space-y-1">
           {/* Group 1: Home */}
           <SidebarGroup title="Trang chủ" isCollapsed={isCollapsed} collapsible={false}>

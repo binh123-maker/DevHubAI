@@ -64,7 +64,7 @@ export function SidebarItem({
     </div>
   )
 
-  if (to && !isDisabled) {
+  if (to && !isDisabled && !onClick) {
     return <Link to={to}>{content}</Link>
   }
 

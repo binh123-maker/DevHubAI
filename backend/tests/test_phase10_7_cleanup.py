@@ -97,7 +97,8 @@ def test_provider_manifest_formats():
     assert "<h1>Provider Manifest" in html_manifest
 
 def test_dead_code_scanner():
-    res = ProviderDeadCodeScanner.scan_directory("backend/app/services/ai")
+    scan_path = "app/services/ai" if os.path.exists("app/services/ai") else "backend/app/services/ai"
+    res = ProviderDeadCodeScanner.scan_directory(scan_path)
     assert "scanned_files" in res
     assert res["scanned_files"] > 0
 

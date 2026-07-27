@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { Droppable } from "@hello-pangea/dnd"
 
 import { Sparkles, BookOpen, CheckCircle, Archive } from "lucide-react"

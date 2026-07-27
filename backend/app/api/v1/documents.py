@@ -212,3 +212,50 @@ def update_document_kanban_status(
     except document_service.DocumentError as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
 
+
+@router.get("/{document_id}/file")
+def get_document_file(
+    document_id: UUID,
+    current_user: CurrentUser,
+    db: DbSession,
+):
+    """Stream binary file content for viewers."""
+    from fastapi.responses import FileResponse
+    from pathlib import Path
+    try:
+        document = document_service.get_owned_document(db, current_user.id, document_id)
+        if not document.file_path or not Path(document.file_path).exists():
+            raise HTTPException(status_code=404, detail="Binary file not found on disk")
+        
+        ext = document.file_type.lower()
+        media_type = "application/octet-stream"
+        if ext == "pdf":
+            media_type = "application/pdf"
+        elif ext in ["txt", "md"]:
+            media_type = "text/plain; charset=utf-8"
+        elif ext == "docx":
+            media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            
+        return FileResponse(
+            path=document.file_path,
+            media_type=media_type,
+            filename=document.file_name,
+        )
+    except document_service.DocumentError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
+
+@router.post("/{document_id}/retry", response_model=DocumentResponse)
+def retry_document_processing(
+    document_id: UUID,
+    current_user: CurrentUser,
+    db: DbSession,
+    background_tasks: BackgroundTasks,
+) -> DocumentResponse:
+    """Retry processing for a failed document using existing file binary without re-uploading."""
+    try:
+        doc = document_service.retry_document_processing(db, current_user.id, document_id)
+        return doc
+    except document_service.DocumentError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+

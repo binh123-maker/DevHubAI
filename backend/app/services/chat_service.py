@@ -336,11 +336,79 @@ def send_message(db: Session, user_id: UUID, chat_id: UUID, msg_in: ChatMessageC
 
     retrieved_chunk_count = len(search_results)
 
+    # --- RAG PIPELINE DIAGNOSTIC LOGGING (runs for every request) ---
+    from app.models.document import DocumentChunk, DocumentStatus
+    ws_name_diag = "General / Global"
+    if chat.workspace_id:
+        ws_obj_diag = db.get(Workspace, chat.workspace_id)
+        if ws_obj_diag:
+            ws_name_diag = ws_obj_diag.name
+
+    total_docs_diag = db.query(Document).filter(Document.user_id == user_id).count()
+    processed_docs_diag = db.query(Document).filter(
+        Document.user_id == user_id, Document.status == DocumentStatus.PROCESSED
+    ).count()
+    total_chunks_diag = (
+        db.query(DocumentChunk)
+        .join(Document, DocumentChunk.document_id == Document.id)
+        .filter(Document.user_id == user_id)
+        .count()
+    )
+
+    logger.info(
+        "[RAG DIAGNOSTIC]\n"
+        f"  Workspace      : {ws_name_diag}\n"
+        f"  Chat Mode      : {chat.chat_mode}\n"
+        f"  Documents      : {total_docs_diag}\n"
+        f"  Processed      : {processed_docs_diag}\n"
+        f"  Chunks Total   : {total_chunks_diag}\n"
+        f"  Retrieved      : {retrieved_chunk_count}\n"
+        f"  Query (raw)    : {msg_in.content[:120]!r}\n"
+        f"  Query (rewrite): {rewritten[:120]!r}"
+    )
+    # --- END DIAGNOSTIC LOG ---
+
     # 3. Build Prompt and Call AI
     context_text, citation_targets = _build_grounded_context(db, search_results, rewritten)
-    
-    if not context_text and chat.chat_mode != ChatMode.GLOBAL:
-        ai_content = "Tôi không tìm thấy tài liệu nào trong workspace hiện tại có chứa thông tin để trả lời câu hỏi của bạn. Vui lòng tải lên tài liệu liên quan hoặc điều chỉnh lại câu hỏi."
+
+    if not context_text:
+        # Gather workspace diagnostic metadata
+        ws_name = ws_name_diag
+        total_docs = total_docs_diag
+        processed_docs = processed_docs_diag
+        total_chunks = total_chunks_diag
+
+        diag_log = (
+            f"[RAG NO-CONTEXT DIAGNOSTIC]\n"
+            f"  Workspace      : {ws_name}\n"
+            f"  Chat Mode      : {chat.chat_mode}\n"
+            f"  Documents      : {total_docs}\n"
+            f"  Processed      : {processed_docs}\n"
+            f"  Chunks Total   : {total_chunks}\n"
+            f"  Matched Chunks : {len(search_results)}\n"
+            f"  Injected Context: 0 characters\n"
+            f"  Strategy       : FTS + Metadata + Heading/Filename + Substring ILIKE Fallback"
+        )
+        logger.warning(diag_log)
+
+        scope_note = (
+            "Bạn đang dùng Global Scope — hệ thống tìm kiếm trong tất cả tài liệu của bạn."
+            if chat.chat_mode == ChatMode.GLOBAL
+            else f"Bạn đang dùng Workspace Scope: {ws_name}."
+        )
+        ai_content = (
+            f"Không tìm thấy trích dẫn phù hợp để trả lời câu hỏi: '{msg_in.content}'.\n\n"
+            f"📍 {scope_note}\n\n"
+            f"🔍 **RAG Pipeline Diagnostics**:\n"
+            f"• Workspace: {ws_name}\n"
+            f"• Chế độ: {chat.chat_mode}\n"
+            f"• Tổng tài liệu: {total_docs} (Đã xử lý RAG: {processed_docs})\n"
+            f"• Tổng Chunks indexed: {total_chunks}\n"
+            f"• Chunks khớp truy vấn: 0\n"
+            f"• Chiến lược: FTS + Metadata + Heading/Filename + Substring ILIKE Fallback\n"
+            f"• LLM Context Length: 0 ký tự\n\n"
+            f"💡 *Gợi ý*: Tải lên tài liệu liên quan hoặc thử từ khóa cụ thể hơn."
+        )
     else:
         system_instruction = (
             "You are a helpful AI assistant for DevHub AI.\n"
@@ -358,9 +426,13 @@ def send_message(db: Session, user_id: UUID, chat_id: UUID, msg_in: ChatMessageC
             "5. Preserve mathematical notations and Unicode symbols when appropriate. Keep answers concise and readable."
         )
         
-        prompt = f"Context Information:\n{context_text}\n\nUser Question:\n{msg_in.content}\n"
-        
-        logger.info(f"[DEBUG RAG] Final context passed into Gemini:\n{context_text}")
+        logger.info(
+            "[RAG CONTEXT READY]\n"
+            f"  Injected Context : {len(context_text)} characters\n"
+            f"  Citation Targets : {len(citation_targets)}\n"
+            f"  LLM Prompt Len   : {len('Context Information:\n' + context_text + '\n\nUser Question:\n' + msg_in.content)} characters"
+        )
+        logger.debug(f"[DEBUG RAG] Final context passed into AI:\n{context_text}")
 
         # Load recent history (last 10 messages for context)
         history = db.query(ChatMessage).filter(ChatMessage.chat_id == chat.id).order_by(ChatMessage.created_at.asc()).limit(10).all()

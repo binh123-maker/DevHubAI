@@ -1,13 +1,26 @@
 export interface Citation {
+  document_id?: string;
   document_name: string;
-  source_type: string;
+  workspace_id?: string;
+  workspace_name?: string;
+  folder_id?: string;
+  folder_name?: string;
   page_number?: number;
+  heading?: string;
+  chunk_id?: string;
+  chunk_index?: number;
+  confidence?: number;
+  confidence_level?: 'High' | 'Medium' | 'Fair' | 'Low';
+  source_type: string;
+  excerpt?: string;
+  url?: string;
+  document_url?: string;
   line_start?: number;
   line_end?: number;
-  heading?: string;
-  url?: string;
-  excerpt?: string;
+  start_offset?: number;
+  end_offset?: number;
 }
+
 
 
 export interface ChatMessage {

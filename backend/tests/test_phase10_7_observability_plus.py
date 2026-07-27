@@ -105,6 +105,8 @@ def cli_env():
     return env
 
 def test_ai_runtime_cli_script(cli_env):
-    res = subprocess.run([sys.executable, "backend/scripts/ai_runtime.py", "ranking"], capture_output=True, text=True, env=cli_env)
+    import os
+    script = "scripts/ai_runtime.py" if os.path.exists("scripts/ai_runtime.py") else "backend/scripts/ai_runtime.py"
+    res = subprocess.run([sys.executable, script, "ranking"], capture_output=True, text=True, env=cli_env)
     assert res.returncode == 0
     assert "recommended_provider" in res.stdout

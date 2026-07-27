@@ -124,6 +124,9 @@ def test_ai_gateway_intent_methods(mock_generate):
     assert res_title.content == "Method Output"
 
 def test_backward_compatibility_orchestrator():
+    from app.services.ai.orchestrator.main import _circuit_breaker
+    _circuit_breaker.state = "CLOSED"
+    _circuit_breaker.failure_count = 0
     # Verify AIOrchestrator still functions as direct fallback entry
     with patch("app.services.ai.factory.main.LLMFactory.get_provider") as mock_factory:
         mock_provider = MagicMock()
