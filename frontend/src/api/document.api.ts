@@ -15,6 +15,8 @@ export interface Document {
   kanban_status: KanbanStatus
   kanban_updated_at: string
   view_count: number
+  last_opened_at?: string | null
+  total_chunks?: number
   created_at: string
   updated_at: string
 }

@@ -18,6 +18,7 @@ import { DeleteWorkspaceDialog } from "@/components/workspace/DeleteWorkspaceDia
 import { WorkspaceFormDialog } from "@/components/workspace/WorkspaceFormDialog"
 import { DocumentUploadDialog } from "@/components/document/DocumentUploadDialog"
 import { DashboardStatsGrid } from "@/components/dashboard/DashboardStatsGrid"
+import { KnowledgeOverviewWidget } from "@/components/dashboard/KnowledgeOverviewWidget"
 import { LearningAnalytics } from "@/components/dashboard/LearningAnalytics"
 import { GitHubContributionHeatmap } from "@/components/dashboard/GitHubContributionHeatmap"
 import { RecentActivityList } from "@/components/dashboard/RecentActivityList"
@@ -38,12 +39,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 const SECTION_IDS = [
   "overview",
+  "quick-actions",
   "statistics",
+  "workspaces",
+  "kanban",
   "analytics",
   "heatmap",
   "activity",
-  "kanban",
-  "workspaces",
 ]
 
 export default function WorkspaceListPage() {
@@ -182,23 +184,25 @@ export default function WorkspaceListPage() {
       )}
 
       {/* 2. Quick Actions Onboarding Section */}
-      <section className="space-y-3">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-          <Zap className="h-4 w-4 text-amber-500" />
-          Thao tác nhanh (Quick Actions)
-        </h2>
-        <QuickActions
-          onUploadClick={() => setUploadOpen(true)}
-          onCreateWorkspaceClick={openCreateDialog}
-        />
-      </section>
+      <AnimatedSection id="quick-actions">
+        <section className="space-y-3">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <Zap className="h-4 w-4 text-amber-500" />
+            Thao tác nhanh (Quick Actions)
+          </h2>
+          <QuickActions
+            onUploadClick={() => setUploadOpen(true)}
+            onCreateWorkspaceClick={openCreateDialog}
+          />
+        </section>
+      </AnimatedSection>
 
       {/* 3. Dashboard Statistics KPI Cards */}
       <AnimatedSection id="statistics">
-        <section className="space-y-3">
+        <section className="space-y-6">
           <h2 className="text-lg font-bold flex items-center gap-2">
             <Layers className="h-5 w-5 text-indigo-500" />
-            Tổng quan chỉ số học tập
+            Tổng quan Tri thức & Chỉ số KPI
           </h2>
           <DashboardWidget title="Statistics KPI Grid">
             {isDashboardLoading || !dashboard ? (
@@ -210,6 +214,9 @@ export default function WorkspaceListPage() {
               />
             )}
           </DashboardWidget>
+
+          {/* Real Knowledge Base Overview Widget */}
+          {dashboard && <KnowledgeOverviewWidget dashboard={dashboard} />}
         </section>
       </AnimatedSection>
 
@@ -253,38 +260,7 @@ export default function WorkspaceListPage() {
         </div>
       </div>
 
-      {/* 6. Document Kanban Board Section */}
-      <AnimatedSection id="kanban">
-        <section className="space-y-4 pt-4 border-t border-border/40">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
-                <Kanban className="h-5 w-5 text-primary" />
-                Bảng Tiến độ Tài liệu (Document Kanban)
-              </h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Kéo thả tài liệu để phân loại trạng thái học tập (Mới &rarr; Đang học &rarr; Hoàn thành)
-              </p>
-            </div>
-          </div>
-
-          <DashboardWidget title="Document Kanban Board">
-            {isDocumentsLoading ? (
-              <KanbanSkeleton />
-            ) : (
-              <WorkspaceKanbanBoard
-                documents={documents}
-                workspaces={workspaces.map((w) => ({ id: w.id, name: w.name }))}
-                folders={[]}
-                onUploadClick={() => setUploadOpen(true)}
-                onCreateWorkspaceClick={openCreateDialog}
-              />
-            )}
-          </DashboardWidget>
-        </section>
-      </AnimatedSection>
-
-      {/* 7. Workspaces Grid */}
+      {/* 4. Workspaces Grid Section */}
       <AnimatedSection id="workspaces">
         <section className="space-y-4 pt-6 border-t border-border/40">
           <div className="flex items-center justify-between">
@@ -327,20 +303,23 @@ export default function WorkspaceListPage() {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {workspaces.map((ws) => (
-                <Card key={ws.id} className="overflow-hidden border border-border/60 bg-card/60 backdrop-blur-xs transition-all hover:shadow-md hover:border-primary/40">
+                <Card
+                  key={ws.id}
+                  className="group relative overflow-hidden border border-border/60 bg-card/60 backdrop-blur-xs transition-all duration-200 hover:shadow-md hover:border-primary/40 cursor-pointer focus-within:ring-2 focus-within:ring-primary"
+                >
                   <div className="h-1.5" style={{ backgroundColor: ws.color }} />
                   <CardHeader className="p-4 space-y-2">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <div
-                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg font-bold"
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg font-bold transition-transform group-hover:scale-105"
                           style={{ backgroundColor: `${ws.color}20`, color: ws.color }}
                         >
                           <FolderOpen className="h-5 w-5" />
                         </div>
                         <div>
                           <CardTitle className="text-base font-semibold">
-                            <Link to={`/workspaces/${ws.id}`} className="hover:underline hover:text-primary transition-colors">
+                            <Link to={`/workspaces/${ws.id}`} className="hover:underline focus:outline-hidden text-foreground group-hover:text-primary transition-colors">
                               {ws.name}
                             </Link>
                           </CardTitle>
@@ -352,11 +331,27 @@ export default function WorkspaceListPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="px-4 pb-4 pt-0 flex gap-2 justify-end border-t border-border/30 pt-3">
-                    <Button variant="ghost" size="sm" onClick={() => openEditDialog(ws)} className="h-8 text-xs gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openEditDialog(ws)
+                      }}
+                      className="h-8 text-xs gap-1"
+                    >
                       <Pencil className="h-3.5 w-3.5" />
                       Sửa
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => openDeleteDialog(ws)} className="h-8 text-xs gap-1 text-destructive hover:bg-destructive/10 hover:text-destructive">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openDeleteDialog(ws)
+                      }}
+                      className="h-8 text-xs gap-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    >
                       <Trash2 className="h-3.5 w-3.5" />
                       Xóa
                     </Button>
@@ -365,6 +360,37 @@ export default function WorkspaceListPage() {
               ))}
             </div>
           )}
+        </section>
+      </AnimatedSection>
+
+      {/* 5. Document Kanban Board Section */}
+      <AnimatedSection id="kanban">
+        <section className="space-y-4 pt-6 border-t border-border/40">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
+                <Kanban className="h-5 w-5 text-primary" />
+                Bảng Tiến độ Tài liệu (Document Kanban)
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Kéo thả tài liệu để phân loại trạng thái học tập (Mới &rarr; Đang học &rarr; Hoàn thành)
+              </p>
+            </div>
+          </div>
+
+          <DashboardWidget title="Document Kanban Board">
+            {isDocumentsLoading ? (
+              <KanbanSkeleton />
+            ) : (
+              <WorkspaceKanbanBoard
+                documents={documents}
+                workspaces={workspaces.map((w) => ({ id: w.id, name: w.name }))}
+                folders={[]}
+                onUploadClick={() => setUploadOpen(true)}
+                onCreateWorkspaceClick={openCreateDialog}
+              />
+            )}
+          </DashboardWidget>
         </section>
       </AnimatedSection>
 

@@ -94,6 +94,8 @@ class DocumentResponse(BaseModel):
     kanban_status: KanbanStatus
     kanban_updated_at: datetime
     view_count: int
+    last_opened_at: datetime | None = None
+    total_chunks: int = 0
     created_at: datetime
     updated_at: datetime
 

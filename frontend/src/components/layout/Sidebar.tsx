@@ -13,6 +13,7 @@ import {
   Sparkles,
   Layers,
   HelpCircle,
+  Zap,
 } from "lucide-react"
 
 import { useNavigation } from "@/contexts/NavigationContext"
@@ -72,8 +73,8 @@ export function Sidebar() {
       {/* 2. Scrollable Navigation List */}
       <div className="space-y-4 flex-1 overflow-y-auto scrollbar-hover pr-1 contain-layout-paint">
         <nav className="space-y-1">
-          {/* Group 1: Home */}
-          <SidebarGroup title="Trang chủ" isCollapsed={isCollapsed} collapsible={false}>
+          {/* Group 1: Overview & Quick Actions */}
+          <SidebarGroup title="Tổng quan" isCollapsed={isCollapsed} collapsible={false}>
             <SidebarItem
               icon={Home}
               label="Dashboard Overview"
@@ -82,17 +83,28 @@ export function Sidebar() {
               isCollapsed={isCollapsed}
               onClick={() => handleNavClick("overview", "/workspaces")}
             />
+            <SidebarItem
+              icon={Zap}
+              label="Thao tác nhanh"
+              isActive={isDashboardPage && activeSectionId === "quick-actions"}
+              isCollapsed={isCollapsed}
+              onClick={() => handleNavClick("quick-actions", "/workspaces")}
+            />
           </SidebarGroup>
 
-          {/* Group 2: Knowledge Management */}
-          <SidebarGroup title="Quản lý tri thức" isCollapsed={isCollapsed}>
+          {/* Group 2: Statistics KPI */}
+          <SidebarGroup title="Chỉ số Thống kê" isCollapsed={isCollapsed}>
             <SidebarItem
-              icon={Kanban}
-              label="Document Kanban"
-              isActive={isDashboardPage && activeSectionId === "kanban"}
+              icon={BarChart3}
+              label="Chỉ số Tri thức KPI"
+              isActive={isDashboardPage && activeSectionId === "statistics"}
               isCollapsed={isCollapsed}
-              onClick={() => handleNavClick("kanban", "/workspaces")}
+              onClick={() => handleNavClick("statistics", "/workspaces")}
             />
+          </SidebarGroup>
+
+          {/* Group 3: Knowledge Management */}
+          <SidebarGroup title="Quản lý tri thức" isCollapsed={isCollapsed}>
             <SidebarItem
               icon={FolderOpen}
               label="Workspaces"
@@ -100,17 +112,17 @@ export function Sidebar() {
               isCollapsed={isCollapsed}
               onClick={() => handleNavClick("workspaces", "/workspaces")}
             />
+            <SidebarItem
+              icon={Kanban}
+              label="Document Kanban"
+              isActive={isDashboardPage && activeSectionId === "kanban"}
+              isCollapsed={isCollapsed}
+              onClick={() => handleNavClick("kanban", "/workspaces")}
+            />
           </SidebarGroup>
 
-          {/* Group 3: Analytics & Activity */}
+          {/* Group 4: Analytics & Activity */}
           <SidebarGroup title="Phân tích & Thống kê" isCollapsed={isCollapsed}>
-            <SidebarItem
-              icon={BarChart3}
-              label="Chỉ số Thống kê"
-              isActive={isDashboardPage && activeSectionId === "statistics"}
-              isCollapsed={isCollapsed}
-              onClick={() => handleNavClick("statistics", "/workspaces")}
-            />
             <SidebarItem
               icon={Sparkles}
               label="Learning Analytics"

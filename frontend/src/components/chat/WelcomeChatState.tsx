@@ -1,5 +1,5 @@
 import React from "react"
-import { Sparkles, Globe, FolderOpen, BookOpen, HelpCircle, FileText } from "lucide-react"
+import { Sparkles, Globe, FolderOpen, FileText } from "lucide-react"
 
 interface WelcomeChatStateProps {
   chatMode?: "global" | "workspace"
@@ -13,10 +13,8 @@ export const WelcomeChatState = React.memo(function WelcomeChatState({
   onPromptClick,
 }: WelcomeChatStateProps) {
   const suggestedPrompts = [
-    { icon: FileText, title: "Tóm tắt kiến thức React", text: "Tóm tắt lại các khái niệm chính trong React và Hooks." },
-    { icon: BookOpen, title: "Giải thích Dependency Injection", text: "Giải thích khái niệm Dependency Injection một cách dễ hiểu." },
+    { icon: FileText, title: "Tóm tắt kiến thức ", text: "Tóm tắt lại các khái niệm chính trong tài liệu." },
     { icon: Sparkles, title: "Những tài liệu mới nhất", text: "Liệt kê danh sách những tài liệu vừa tải lên gần đây." },
-    { icon: HelpCircle, title: "Kiểm tra kiến thức SQL", text: "Tạo 3 câu hỏi trắc nghiệm kiểm tra kiến thức SQL căn bản." },
   ]
 
   return (

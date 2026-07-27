@@ -85,21 +85,19 @@ export function ChatMessageItem({
       )}
 
       <div
-        className={`max-w-2xl rounded-2xl p-4 shadow-xs space-y-3 ${
-          isUser
+        className={`max-w-2xl rounded-2xl p-4 shadow-xs space-y-3 ${isUser
             ? "bg-primary text-primary-foreground font-medium rounded-tr-xs"
             : "bg-card border border-border/60 text-card-foreground rounded-tl-xs"
-        }`}
+          }`}
       >
         {/* Search Scope Badge if Assistant */}
         {!isUser && (
           <div className="flex items-center justify-between border-b border-border/40 pb-2">
             <span
-              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${
-                chatMode === "global"
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${chatMode === "global"
                   ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                   : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-              }`}
+                }`}
             >
               {chatMode === "global" ? <Globe className="h-3 w-3" /> : <FolderOpen className="h-3 w-3" />}
               <span>{chatMode === "global" ? "GLOBAL SCOPE" : `WORKSPACE: ${workspaceName || "LOCKED"}`}</span>
@@ -171,7 +169,7 @@ export function ChatMessageItem({
               </span>
               <div className="flex items-center gap-2">
                 <span>{message.citations.length} nguồn tài liệu</span>
-                {message.citations.length > 3 && (
+                {message.citations.length > 1 && (
                   <button
                     onClick={() => setIsCitationsExpanded(!isCitationsExpanded)}
                     className="text-primary hover:underline font-bold transition-colors flex items-center gap-0.5 text-[11px]"
@@ -182,9 +180,8 @@ export function ChatMessageItem({
               </div>
             </div>
 
-            <div className={`grid gap-2.5 transition-all duration-200 ${
-              isCitationsExpanded ? "max-h-[350px] overflow-y-auto pr-1 scrollbar-thin" : ""
-            }`}>
+            <div className={`grid gap-2.5 transition-all duration-200 ${isCitationsExpanded ? "max-h-[350px] overflow-y-auto pr-1 scrollbar-thin" : ""
+              }`}>
               {(isCitationsExpanded ? message.citations : message.citations.slice(0, 3)).map((cit, idx) => (
                 <CitationCard
                   key={idx}

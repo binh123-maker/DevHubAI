@@ -3,9 +3,8 @@ import { DragDropContext, DropResult } from "@hello-pangea/dnd"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { KanbanColumn, COLUMN_CONFIGS } from "./KanbanColumn"
 import { KanbanFilterBar, SortOption } from "./KanbanFilterBar"
-import { KanbanSpeedDial } from "./KanbanSpeedDial"
 import { documentApi, Document, KanbanStatus } from "@/api/document.api"
-import { FileUp, RotateCcw, FolderPlus, Globe, Plus } from "lucide-react"
+import { RotateCcw, Plus, FolderPlus, FileUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 
@@ -220,24 +219,8 @@ export function WorkspaceKanbanBoard({
 
   return (
     <div className="space-y-4 relative">
-      {/* Action Shortcuts Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-card/60 border border-border/50 rounded-xl p-3 backdrop-blur-sm">
-        <div className="flex items-center gap-2">
-          <Button size="sm" onClick={() => onUploadClick?.()} className="gap-1.5 text-xs shadow-xs">
-            <FileUp className="h-3.5 w-3.5" />
-            Tải lên Tài liệu
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => onUploadClick?.()} className="gap-1.5 text-xs">
-            <Globe className="h-3.5 w-3.5 text-emerald-500" />
-            Nhập URL
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => onCreateWorkspaceClick?.()} className="gap-1.5 text-xs">
-            <FolderPlus className="h-3.5 w-3.5 text-amber-500" />
-            Tạo Workspace
-          </Button>
-        </div>
-
-        {/* Filter Bar Controls */}
+      {/* Filter Bar Controls */}
+      <div className="bg-card/60 border border-border/50 rounded-xl p-3 backdrop-blur-sm">
         <KanbanFilterBar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -315,14 +298,6 @@ export function WorkspaceKanbanBoard({
           </div>
         </DragDropContext>
       )}
-
-
-      {/* Floating Speed Dial FAB */}
-      <KanbanSpeedDial
-        onUploadClick={() => onUploadClick?.()}
-        onImportUrlClick={() => onUploadClick?.()}
-        onCreateWorkspaceClick={() => onCreateWorkspaceClick?.()}
-      />
 
       {/* Toast Notification with Undo Action */}
       {toast && (

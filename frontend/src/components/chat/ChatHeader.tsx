@@ -13,8 +13,16 @@ interface ChatHeaderProps {
   title?: string
   workspaceName?: string
   citationCount?: number
+  provider?: string
+  model?: string
+  contextTokens?: number
+  maxContextTokens?: number
+  retrievedChunks?: number
+  latencyMs?: number
+  providerStatus?: "online" | "streaming" | "idle"
   onOpenMetadata?: () => void
   onToggleCitationDock?: () => void
+  onModelChange?: (model: string) => void
 }
 
 export const ChatHeader = React.memo(function ChatHeader({
@@ -22,23 +30,40 @@ export const ChatHeader = React.memo(function ChatHeader({
   title,
   workspaceName,
   citationCount = 0,
+  provider = "Google DeepMind",
+  model = "Gemini 2.5 Pro (RAG)",
+  contextTokens = 14200,
+  maxContextTokens = 128000,
+  retrievedChunks = 4,
+  latencyMs = 185,
+  providerStatus = "online",
   onOpenMetadata,
   onToggleCitationDock,
+  onModelChange,
 }: ChatHeaderProps) {
-  const [selectedModel, setSelectedModel] = useState("Gemini 1.5 Pro (RAG)")
+  const [selectedModel, setSelectedModel] = useState(model)
 
   const models = [
-    { id: "gemini", name: "Gemini 1.5 Pro (RAG)", provider: "Google DeepMind", active: true },
+    { id: "gemini", name: "Gemini 2.5 Pro (RAG)", provider: "Google DeepMind", active: true },
+    { id: "gpt5", name: "GPT-5 (RAG Enterprise)", provider: "OpenAI", active: false },
     { id: "gpt4o", name: "OpenAI GPT-4o (RAG)", provider: "OpenAI", active: false },
     { id: "claude", name: "Claude 3.5 Sonnet (RAG)", provider: "Anthropic", active: false },
     { id: "groq", name: "Groq Llama 3 (Ultra-Fast)", provider: "Groq Cloud", active: false },
     { id: "ollama", name: "Ollama Llama 3.2 (Local)", provider: "Local LLM", active: false },
   ]
 
+  const handleSelectModel = (m: (typeof models)[0]) => {
+    setSelectedModel(m.name)
+    if (onModelChange) {
+      onModelChange(m.name)
+    }
+  }
+
   const isGlobal = chatMode === "global"
+  const formattedTokens = `${Math.round(contextTokens / 1000)}k / ${Math.round(maxContextTokens / 1000)}k`
 
   return (
-    <header className="h-[72px] shrink-0 flex items-center justify-between gap-3 border-b border-border/40 bg-card/60 px-4 py-2.5 backdrop-blur-md z-20">
+    <header className="h-[76px] shrink-0 flex items-center justify-between gap-3 border-b border-border/40 bg-card/60 px-4 py-2.5 backdrop-blur-md z-20">
       {/* Scope & Title */}
       <div className="flex items-center gap-3 min-w-0">
         <div
@@ -50,7 +75,7 @@ export const ChatHeader = React.memo(function ChatHeader({
         </div>
 
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-sm sm:text-base font-bold text-foreground truncate max-w-xs sm:max-w-md">
               {title || (isGlobal ? "🌍 Global Knowledge Chat" : `📁 Workspace: ${workspaceName || "Đang chọn"}`)}
             </h2>
@@ -63,15 +88,25 @@ export const ChatHeader = React.memo(function ChatHeader({
             >
               {isGlobal ? "Global Scope" : "Scope Locked"}
             </span>
+
+            {/* Provider Live Badge */}
+            <span className="hidden lg:inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+              <span className={`h-1.5 w-1.5 rounded-full ${providerStatus === "streaming" ? "bg-amber-500 animate-pulse" : "bg-emerald-500"}`} />
+              {provider}
+            </span>
           </div>
 
-          {/* Context Window Indicator */}
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
-            <span className="truncate">{isGlobal ? "Tra cứu toàn bộ tài liệu" : `Chỉ tra cứu trong ${workspaceName || "Workspace"}`}</span>
+          {/* Context Window & Runtime Latency Metrics */}
+          <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5 flex-wrap">
+            <span className="truncate">{isGlobal ? "Tra cứu toàn bộ tri thức" : `Chỉ tra cứu trong ${workspaceName || "Workspace"}`}</span>
             <span>•</span>
             <span className="inline-flex items-center gap-1 font-mono text-[10px] text-purple-500 font-bold shrink-0">
               <Zap className="h-3 w-3" />
-              Tokens: 14k / 128k
+              Context: {formattedTokens}
+            </span>
+            <span>•</span>
+            <span className="font-mono text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold shrink-0">
+              Chunks: {retrievedChunks} ({latencyMs}ms)
             </span>
           </div>
         </div>
@@ -88,14 +123,15 @@ export const ChatHeader = React.memo(function ChatHeader({
               <ChevronDown className="h-3 w-3 text-muted-foreground" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 p-1 border border-border/60 bg-popover text-popover-foreground shadow-2xl rounded-2xl">
-            <div className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/40">
-              Chọn Mô hình AI Tra cứu RAG
+          <DropdownMenuContent align="end" className="w-60 p-1 border border-border/60 bg-popover text-popover-foreground shadow-2xl rounded-2xl">
+            <div className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/40 flex items-center justify-between">
+              <span>Chọn Mô hình AI Tra cứu</span>
+              <span className="text-[9px] text-emerald-500 font-semibold">{providerStatus === "streaming" ? "Streaming" : "Active"}</span>
             </div>
             {models.map((m) => (
               <DropdownMenuItem
                 key={m.id}
-                onClick={() => setSelectedModel(m.name)}
+                onClick={() => handleSelectModel(m)}
                 className="flex items-center justify-between cursor-pointer text-xs py-2"
               >
                 <div>

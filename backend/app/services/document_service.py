@@ -1,5 +1,6 @@
 import logging
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID
 
@@ -58,18 +59,20 @@ def get_owned_document(db: Session, user_id: UUID, document_id: UUID) -> Documen
     )
     if not document:
         raise DocumentError("Document not found", status_code=404)
+    document.view_count = (document.view_count or 0) + 1
+    document.last_opened_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(document)
     return document
 
 
-def list_documents(db: Session, user_id: UUID, workspace_id: UUID, folder_id: UUID | None = None) -> list[Document]:
-    # Validate workspace ownership
-    get_owned_workspace(db, user_id, workspace_id)
-    
-    query = select(Document).where(Document.workspace_id == workspace_id)
+def list_documents(db: Session, user_id: UUID, workspace_id: UUID | None = None, folder_id: UUID | None = None) -> list[Document]:
+    query = select(Document).where(Document.user_id == user_id)
+    if workspace_id:
+        get_owned_workspace(db, user_id, workspace_id)
+        query = query.where(Document.workspace_id == workspace_id)
     if folder_id:
         query = query.where(Document.folder_id == folder_id)
-    else:
-        query = query.where(Document.folder_id.is_(None))
         
     return list(db.scalars(query.order_by(Document.created_at.desc())))
 

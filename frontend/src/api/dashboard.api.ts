@@ -9,6 +9,13 @@ export interface DashboardStatistics {
   total_uploads: number
   documents_processed: number
   learning_streak_days: number
+  total_chunks?: number
+  indexed_documents?: number
+  failed_documents?: number
+  embedding_status?: string
+  search_health?: string
+  latest_processing_time?: string | null
+  avg_retrieval_time_ms?: number
 }
 
 export interface MostActiveWorkspace {
@@ -40,11 +47,42 @@ export interface RecentActivityItem {
   meta?: Record<string, any> | null
 }
 
+export interface DocumentSummaryItem {
+  id: string
+  title: string
+  workspace_id: string
+  workspace_name?: string | null
+  file_type: string
+  file_size: number
+  status: string
+  kanban_status: string
+  view_count: number
+  last_opened_at?: string | null
+  total_chunks?: number
+  created_at: string
+  updated_at: string
+}
+
+export interface RecentWorkspaceItem {
+  id: string
+  name: string
+  color: string
+  document_count: number
+  updated_at: string
+}
+
 export interface UserDashboardOverviewResponse {
   statistics: DashboardStatistics
   learning_analytics: LearningAnalytics
   heatmap: HeatmapDay[]
   recent_activities: RecentActivityItem[]
+  recent_documents?: DocumentSummaryItem[]
+  recently_processed?: DocumentSummaryItem[]
+  recently_opened?: DocumentSummaryItem[]
+  favorite_documents?: DocumentSummaryItem[]
+  recent_workspaces?: RecentWorkspaceItem[]
+  kanban_summary?: Record<string, number>
+  knowledge_health?: Record<string, any>
 }
 
 export const dashboardApi = {

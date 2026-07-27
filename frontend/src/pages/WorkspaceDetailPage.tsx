@@ -54,7 +54,27 @@ export default function WorkspaceDetailPage() {
   })
 
   if (isLoading) {
-    return <p className="text-muted-foreground">Đang tải workspace...</p>
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="h-9 w-24 bg-muted/60 animate-pulse rounded-md" />
+          <div className="flex gap-2">
+            <div className="h-9 w-20 bg-muted/60 animate-pulse rounded-md" />
+            <div className="h-9 w-20 bg-muted/60 animate-pulse rounded-md" />
+          </div>
+        </div>
+        <Card className="overflow-hidden">
+          <div className="h-2 bg-muted/80 animate-pulse" />
+          <CardHeader>
+            <div className="h-7 w-1/3 bg-muted/60 animate-pulse rounded-md mb-2" />
+            <div className="h-4 w-1/4 bg-muted/40 animate-pulse rounded-md" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="h-16 w-full bg-muted/40 animate-pulse rounded-md" />
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   if (isError || !workspace) {
@@ -66,9 +86,16 @@ export default function WorkspaceDetailPage() {
             Quay lại
           </Link>
         </Button>
-        <Card>
-          <CardContent className="py-8">
-            <p className="text-destructive">Không tìm thấy workspace hoặc bạn không có quyền truy cập.</p>
+        <Card className="border-destructive/30 bg-destructive/5">
+          <CardContent className="py-8 text-center space-y-3">
+            <p className="text-destructive font-semibold">Không tìm thấy workspace hoặc bạn không có quyền truy cập.</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void queryClient.invalidateQueries({ queryKey: ["workspaces", id] })}
+            >
+              Thử lại
+            </Button>
           </CardContent>
         </Card>
       </div>

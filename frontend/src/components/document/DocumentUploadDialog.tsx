@@ -54,6 +54,8 @@ export function DocumentUploadDialog({
       setIsSuccess(true)
       void queryClient.invalidateQueries({ queryKey: ["documents"] })
       void queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] })
+      void queryClient.invalidateQueries({ queryKey: ["workspaces"] })
+      void queryClient.invalidateQueries({ queryKey: ["search"] })
       setTimeout(() => {
         setIsSuccess(false)
         setFiles([])
@@ -83,6 +85,8 @@ export function DocumentUploadDialog({
       setIsSuccess(true)
       void queryClient.invalidateQueries({ queryKey: ["documents"] })
       void queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] })
+      void queryClient.invalidateQueries({ queryKey: ["workspaces"] })
+      void queryClient.invalidateQueries({ queryKey: ["search"] })
       setTimeout(() => {
         setIsSuccess(false)
         setUrl("")

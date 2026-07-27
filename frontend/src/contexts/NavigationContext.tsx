@@ -28,9 +28,7 @@ export function NavigationProvider({ children }: { children: React.ReactNode }) 
     setIsMobileOpen(false)
     const element = document.getElementById(id)
     if (element) {
-      const yOffset = -80 // Offset for sticky header
-      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset
-      window.scrollTo({ top: y, behavior: "smooth" })
+      element.scrollIntoView({ behavior: "smooth", block: "start" })
     }
   }, [])
 
