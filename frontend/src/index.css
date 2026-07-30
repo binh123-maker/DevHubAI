@@ -106,8 +106,27 @@
   .click-press {
     @apply active:scale-[0.98] transition-transform duration-150;
   }
+  /* Modern SaaS Glassmorphism & Elevation */
   .glass-card {
-    @apply bg-card/70 backdrop-blur-md border border-border/50 shadow-sm rounded-2xl;
+    @apply bg-card/70 backdrop-blur-xl border border-border/60 shadow-sm rounded-2xl transition-all duration-300;
+  }
+  .glass-card-hover {
+    @apply hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 transition-all duration-300;
+  }
+  .glass-panel {
+    @apply bg-background/80 backdrop-blur-xl border border-border/80 shadow-2xl;
+  }
+  .bg-hero-gradient {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(139, 92, 246, 0.12) 50%, rgba(236, 72, 153, 0.06) 100%);
+  }
+  .dark .bg-hero-gradient {
+    background: linear-gradient(135deg, rgba(30, 58, 138, 0.3) 0%, rgba(88, 28, 135, 0.35) 50%, rgba(131, 24, 67, 0.25) 100%);
+  }
+  .text-gradient-primary {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 dark:from-blue-400 dark:via-indigo-300 dark:to-purple-400;
+  }
+  .rounded-24 {
+    border-radius: 1.5rem;
   }
 
   .contain-layout-paint {
@@ -136,3 +155,4 @@
     }
   }
 }
+
