@@ -24,9 +24,10 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
+import { tokenStorage } from "@/auth/utils/tokenStorage"
+
 function storeTokens(accessToken: string, refreshToken: string) {
-  localStorage.setItem("access_token", accessToken)
-  localStorage.setItem("refresh_token", refreshToken)
+  tokenStorage.setTokens(accessToken, refreshToken)
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -43,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     async function bootstrap() {
-      const accessToken = localStorage.getItem("access_token")
+      const accessToken = tokenStorage.getAccessToken()
       if (!accessToken) {
         setIsInitializing(false)
         return
@@ -97,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   const logout = useCallback(async () => {
-    const refreshToken = localStorage.getItem("refresh_token")
+    const refreshToken = tokenStorage.getRefreshToken()
     try {
       if (refreshToken) {
         await authApi.logout(refreshToken)

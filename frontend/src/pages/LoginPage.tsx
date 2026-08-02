@@ -7,11 +7,14 @@ import { getApiErrorMessage } from "@/api/axios"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/AuthContext"
 
+import { sanitizeRedirectPath } from "@/auth/utils/pathSanitizer"
+
 export default function LoginPage() {
   const { login, isLoading } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? "/workspaces"
+  const rawFrom = (location.state as { from?: { pathname: string } } | null)?.from?.pathname
+  const from = sanitizeRedirectPath(rawFrom, "/workspaces")
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")

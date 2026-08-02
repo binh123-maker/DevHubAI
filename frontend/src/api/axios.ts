@@ -16,9 +16,10 @@ const refreshClient = axios.create({
   },
 })
 
+import { tokenStorage } from "@/auth/utils/tokenStorage"
+
 function clearTokens() {
-  localStorage.removeItem("access_token")
-  localStorage.removeItem("refresh_token")
+  tokenStorage.clearTokens()
 }
 
 export function getApiErrorMessage(error: unknown, fallback = "Đã xảy ra lỗi. Vui lòng thử lại."): string {
@@ -39,7 +40,7 @@ export function getApiErrorMessage(error: unknown, fallback = "Đã xảy ra l�
 let refreshPromise: Promise<string | null> | null = null
 
 async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = localStorage.getItem("refresh_token")
+  const refreshToken = tokenStorage.getRefreshToken()
   if (!refreshToken) {
     clearTokens()
     return null
@@ -51,8 +52,7 @@ async function refreshAccessToken(): Promise<string | null> {
         refresh_token: refreshToken,
       })
       .then(({ data }) => {
-        localStorage.setItem("access_token", data.access_token)
-        localStorage.setItem("refresh_token", data.refresh_token)
+        tokenStorage.setTokens(data.access_token, data.refresh_token)
         return data.access_token
       })
       .catch(() => {
@@ -68,7 +68,7 @@ async function refreshAccessToken(): Promise<string | null> {
 }
 
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem("access_token")
+  const token = tokenStorage.getAccessToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
