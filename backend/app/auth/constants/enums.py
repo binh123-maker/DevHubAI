@@ -5,11 +5,6 @@ class AuthProvider(str, Enum):
     LOCAL = "local"
     EMAIL = "email"
     GOOGLE = "google"
-    GITHUB = "github"
-    MICROSOFT = "microsoft"
-    GITLAB = "gitlab"
-    FACEBOOK = "facebook"
-    LINKEDIN = "linkedin"
 
 
 class TokenType(str, Enum):
@@ -66,9 +61,9 @@ class SecurityEventType(str, Enum):
     OTP_SENT = "otp_sent"
     OTP_VERIFIED = "otp_verified"
     GOOGLE_LOGIN = "google_login"
-    GITHUB_LOGIN = "github_login"
     SESSION_CREATED = "session_created"
     SESSION_REVOKED = "session_revoked"
     TOKEN_REFRESHED = "token_refreshed"
     ACCOUNT_LINKED = "account_linked"
     ACCOUNT_UNLINKED = "account_unlinked"
+

@@ -16,14 +16,6 @@ class AuthFeatureFlags(BaseModel):
         default=True,
         description="Enable Google OAuth 2.0 authentication.",
     )
-    enable_github_login: bool = Field(
-        default=True,
-        description="Enable GitHub OAuth 2.0 authentication.",
-    )
-    enable_microsoft_login: bool = Field(
-        default=False,
-        description="Enable Microsoft OAuth 2.0 authentication.",
-    )
     enable_otp: bool = Field(
         default=True,
         description="Enable One-Time Passcode verification engine.",

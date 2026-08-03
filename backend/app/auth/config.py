@@ -99,5 +99,26 @@ class AuthConfig(BaseModel):
         description="SameSite cookie policy. Category: SECURITY_CRITICAL",
     )
 
+    # --- Google OAuth Settings ---
+    google_client_id: str = Field(
+        default_factory=lambda: settings.google_client_id,
+        description="Google OAuth Client ID loaded from environment. Category: SECURITY_CRITICAL",
+    )
+    google_client_secret: str = Field(
+        default_factory=lambda: settings.google_client_secret,
+        description="Google OAuth Client Secret loaded from environment. Category: SECURITY_CRITICAL",
+    )
+    google_redirect_uri: str = Field(
+        default_factory=lambda: settings.google_redirect_uri,
+        description="Google OAuth Redirect URI loaded from environment. Category: PRODUCTION",
+    )
+
+    def validate_google_oauth_config(self) -> None:
+        """Validates Google OAuth configuration. Raises ValueError if required credentials are missing."""
+        if not self.google_client_id:
+            raise ValueError("Google OAuth configuration error: GOOGLE_CLIENT_ID environment variable is missing or empty.")
+        if not self.google_client_secret:
+            raise ValueError("Google OAuth configuration error: GOOGLE_CLIENT_SECRET environment variable is missing or empty.")
+
 
 auth_config = AuthConfig()

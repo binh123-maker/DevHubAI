@@ -12,6 +12,7 @@ from app.models.enums import GenderType, OAuthProvider, UserRole
 if TYPE_CHECKING:
     from app.models.chat import AIUsageLog, Chat
     from app.models.document import Document
+    from app.models.oauth_account import OAuthAccount
     from app.models.workspace import Workspace
 
 
@@ -43,6 +44,7 @@ class User(Base):
 
     profile: Mapped["UserProfile | None"] = relationship(back_populates="user", uselist=False)
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(back_populates="user")
+    oauth_accounts: Mapped[list["OAuthAccount"]] = relationship(back_populates="user")
     workspaces: Mapped[list["Workspace"]] = relationship(back_populates="user")
     documents: Mapped[list["Document"]] = relationship(back_populates="user")
     chats: Mapped[list["Chat"]] = relationship(back_populates="user")

@@ -7,6 +7,7 @@ import ChatHistoryPage from "@/pages/ChatHistoryPage"
 import DocumentViewerPage from "@/pages/DocumentViewerPage"
 import LandingPage from "@/pages/LandingPage"
 import LoginPage from "@/pages/LoginPage"
+import OAuthCallbackPage from "@/pages/OAuthCallbackPage"
 import ProfilePage from "@/pages/ProfilePage"
 import RegisterPage from "@/pages/RegisterPage"
 import SettingsPage from "@/pages/SettingsPage"
@@ -18,6 +19,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+
+        <Route path="/auth/callback/:provider" element={<OAuthCallbackPage />} />
 
         <Route element={<PublicOnlyRoute />}>
           <Route element={<AuthLayout />}>

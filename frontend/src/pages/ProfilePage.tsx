@@ -229,15 +229,15 @@ export default function ProfilePage({ embedded = false }: ProfilePageProps) {
           {/* Quick Metrics Badges Horizontal */}
           <div className="flex items-center gap-4 sm:gap-6 border-t md:border-t-0 md:border-l border-border/40 pt-4 md:pt-0 md:pl-6">
             <div className="text-center">
-              <p className="text-2xl font-extrabold text-foreground">{statistics.total_workspaces || 12}</p>
+              <p className="text-2xl font-extrabold text-foreground">{statistics.total_workspaces || 0}</p>
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Workspaces</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-extrabold text-foreground">{statistics.total_chats || 42}</p>
+              <p className="text-2xl font-extrabold text-foreground">{statistics.total_chats || 0}</p>
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Chats</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-extrabold text-foreground">{statistics.total_documents || 320}</p>
+              <p className="text-2xl font-extrabold text-foreground">{statistics.total_documents || 0}</p>
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Files</p>
             </div>
           </div>
@@ -274,10 +274,10 @@ export default function ProfilePage({ embedded = false }: ProfilePageProps) {
                     count === 0
                       ? "bg-muted/60 text-muted-foreground"
                       : count === 1
-                      ? "bg-primary/20 text-primary font-bold"
-                      : count <= 3
-                      ? "bg-primary/50 text-white font-bold"
-                      : "bg-primary text-white font-extrabold shadow-sm"
+                        ? "bg-primary/20 text-primary font-bold"
+                        : count <= 3
+                          ? "bg-primary/50 text-white font-bold"
+                          : "bg-primary text-white font-extrabold shadow-sm"
 
                   return (
                     <div
@@ -353,13 +353,12 @@ export default function ProfilePage({ embedded = false }: ProfilePageProps) {
                 return (
                   <div key={item.id} className="flex items-start gap-3.5 relative group">
                     <div
-                      className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 z-10 ring-4 ring-background shadow-xs ${
-                        isChat
+                      className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 z-10 ring-4 ring-background shadow-xs ${isChat
                           ? "bg-indigo-500/10 text-indigo-500"
                           : isDoc
-                          ? "bg-emerald-500/10 text-emerald-500"
-                          : "bg-amber-500/10 text-amber-500"
-                      }`}
+                            ? "bg-emerald-500/10 text-emerald-500"
+                            : "bg-amber-500/10 text-amber-500"
+                        }`}
                     >
                       {isChat ? (
                         <MessageSquare className="h-3.5 w-3.5" />
@@ -375,8 +374,8 @@ export default function ProfilePage({ embedded = false }: ProfilePageProps) {
                         {isChat
                           ? `Tạo hội thoại: ${item.title}`
                           : isDoc
-                          ? `Tải tài liệu: ${item.title}`
-                          : `Tạo Workspace: ${item.title}`}
+                            ? `Tải tài liệu: ${item.title}`
+                            : `Tạo Workspace: ${item.title}`}
                       </p>
                       <p className="text-[10px] text-muted-foreground font-mono">{formatActivityTime(item.created_at)}</p>
                     </div>

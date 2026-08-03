@@ -17,6 +17,11 @@ class Settings(BaseSettings):
 
     cors_origins: str = "http://localhost:5173,http://localhost:3000,http://localhost"
 
+    # Google OAuth Settings
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = "http://localhost:8000/api/v1/auth/oauth/google/callback"
+
     upload_dir: str = "uploads"
     max_upload_size_mb: int = 100
     

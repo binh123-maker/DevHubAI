@@ -37,7 +37,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isInitializing, setIsInitializing] = useState(true)
 
   const fetchCurrentUser = useCallback(async () => {
+    console.log("[AuthContext] Fetching current user profile...")
     const { data } = await authApi.me()
+    console.log("[AuthContext] User profile fetched successfully:", data.email)
     setUser(data)
     setIsAuthenticated(true)
   }, [])
@@ -45,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function bootstrap() {
       const accessToken = tokenStorage.getAccessToken()
+      console.log("[AuthContext] Bootstrap init, accessToken exists:", !!accessToken)
       if (!accessToken) {
         setIsInitializing(false)
         return
@@ -52,7 +55,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         await fetchCurrentUser()
-      } catch {
+      } catch (err) {
+        console.error("[AuthContext] Bootstrap fetchCurrentUser failed:", err)
         clearTokens()
         setUser(null)
         setIsAuthenticated(false)

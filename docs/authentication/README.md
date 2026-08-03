@@ -10,6 +10,7 @@ For onboarding developers, architects, and security auditors, follow the recomme
 
 ### 1. Architectural Blueprint & Overview
 - [AUTH_ARCHITECTURE.md](AUTH_ARCHITECTURE.md) - System overview, component boundaries, dependency rules.
+- [AUTH_DECISIONS.md](AUTH_DECISIONS.md) - Architectural Decision Record (ADR) for Google-Only Authentication.
 - [ARCHITECTURE_FREEZE.md](ARCHITECTURE_FREEZE.md) - Immutable architecture freeze declaration & extension rules.
 - [PHASE2_CONTRACT.md](PHASE2_CONTRACT.md) - Strict Phase 2 developer implementation contract.
 
@@ -24,9 +25,19 @@ For onboarding developers, architects, and security auditors, follow the recomme
 - [ACCOUNT_STATE_MACHINE.md](ACCOUNT_STATE_MACHINE.md) - User account lifecycle state machine.
 - [OTP_STATE_MACHINE.md](OTP_STATE_MACHINE.md) - Unified OTP module state machine.
 - [SESSION_STATE_MACHINE.md](SESSION_STATE_MACHINE.md) - Device & Session management state machine.
-- [OAUTH_STATE_MACHINE.md](OAUTH_STATE_MACHINE.md) - OAuth Provider strategy flow state machine.
-- [OAUTH_DESIGN.md](OAUTH_DESIGN.md) - Provider plugin registry & OAuth strategy pattern.
-- [ACCOUNT_LINKING.md](ACCOUNT_LINKING.md) - Multi-provider account linking & conflict resolution.
+- [OAUTH_STATE_MACHINE.md](OAUTH_STATE_MACHINE.md) - Google OAuth strategy flow state machine.
+- [OAUTH_DESIGN.md](OAUTH_DESIGN.md) - Google Identity Integration architecture.
+- [ACCOUNT_LINKING.md](ACCOUNT_LINKING.md) - Account linking & conflict resolution.
+- [GOOGLE_OAUTH.md](GOOGLE_OAUTH.md) - Google OAuth 2.0 integration & Identity-Only Policy.
+- [GOOGLE_API.md](GOOGLE_API.md) - Google OAuth API specifications.
+- [GOOGLE_SEQUENCE.md](GOOGLE_SEQUENCE.md) - Google OAuth sequence diagrams.
+- [GOOGLE_SECURITY.md](GOOGLE_SECURITY.md) - Google OAuth security controls.
+- [GOOGLE_DATABASE.md](GOOGLE_DATABASE.md) - `oauth_accounts` table DDL & index specs.
+- [GOOGLE_TESTING.md](GOOGLE_TESTING.md) - Google OAuth testing matrix & mocks.
+- [GOOGLE_UI_FLOW.md](GOOGLE_UI_FLOW.md) - Google OAuth frontend UI & callback flow.
+- [GOOGLE_ACCOUNT_LINKING.md](GOOGLE_ACCOUNT_LINKING.md) - Secure account linking rules.
+- [GOOGLE_PROFILE_SYNC.md](GOOGLE_PROFILE_SYNC.md) - Non-destructive profile sync policy.
+- [OAUTH_PROVIDER_GUIDE.md](OAUTH_PROVIDER_GUIDE.md) - Developer guide for Google Identity Integration.
 
 ### 4. Security Policies & Cross-Cutting Concerns
 - [SECURITY_AUDIT.md](SECURITY_AUDIT.md) - OWASP Top 10 vulnerability assessment & threat models.
