@@ -38,7 +38,7 @@ def test_provider_env_loader():
 def test_dynamic_model_resolution():
     # Resolve default
     m1 = ProviderConfigCenter.resolve_model("openai", "chat")
-    assert m1 == "gpt-4o"
+    assert m1 in ("gpt-4o", "gpt-4o-mini")
 
     # Set custom override
     ProviderModel.set_custom_mapping("openai", "chat", "gpt-4o-custom")

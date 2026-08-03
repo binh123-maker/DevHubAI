@@ -22,6 +22,14 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     google_redirect_uri: str = "http://localhost:8000/api/v1/auth/oauth/google/callback"
 
+    # SMTP Mail Settings (Part 26)
+    smtp_host: str = "localhost"
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = "noreply@devhub.ai"
+    smtp_tls: bool = True
+
     upload_dir: str = "uploads"
     max_upload_size_mb: int = 100
     

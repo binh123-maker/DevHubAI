@@ -61,4 +61,14 @@ export const authApi = {
     }),
   getGoogleStatus: () => apiClient.get<GoogleOAuthStatusResponse>("/auth/oauth/google/status"),
   disconnectGoogle: () => apiClient.post("/auth/oauth/google/disconnect"),
+
+  // Phase 3 Password Recovery & Password Management Methods
+  forgotPassword: (email: string) =>
+    apiClient.post<{ message: string; cooldown_seconds: number }>("/auth/password/forgot", { email }),
+  verifyOtp: (email: string, code: string) =>
+    apiClient.post<{ reset_token: string; message: string }>("/auth/password/verify", { email, code }),
+  resetPassword: (payload: { email: string; reset_token: string; new_password: string; new_password_confirm: string }) =>
+    apiClient.post<{ message: string }>("/auth/password/reset", payload),
+  changePassword: (payload: { current_password: string; new_password: string; new_password_confirm: string }) =>
+    apiClient.post<{ message: string }>("/auth/password/change", payload),
 }

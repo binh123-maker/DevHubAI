@@ -27,6 +27,14 @@ export default function SettingsPage() {
   const [unlinkError, setUnlinkError] = useState<string | null>(null)
   const [isUnlinking, setIsUnlinking] = useState(false)
 
+  // Password Change Form State (Phase 3)
+  const [pwdCurrent, setPwdCurrent] = useState("")
+  const [pwdNew, setPwdNew] = useState("")
+  const [pwdConfirm, setPwdConfirm] = useState("")
+  const [pwdError, setPwdError] = useState<string | null>(null)
+  const [pwdSuccess, setPwdSuccess] = useState<string | null>(null)
+  const [isChangingPwd, setIsChangingPwd] = useState(false)
+
   const tabs = [
     { id: "profile", label: "Hồ sơ cá nhân", icon: User },
     { id: "general", label: "Cấu hình chung", icon: Sliders },
@@ -119,23 +127,68 @@ export default function SettingsPage() {
             <div className="space-y-8">
               <div>
                 <h2 className="text-lg font-bold">Bảo mật & Đổi mật khẩu</h2>
-                <div className="space-y-4 max-w-md mt-4">
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault()
+                    if (!pwdNew || pwdNew !== pwdConfirm) return
+                    setPwdError(null)
+                    setPwdSuccess(null)
+                    setIsChangingPwd(true)
+                    try {
+                      const { data } = await authApi.changePassword({
+                        current_password: pwdCurrent,
+                        new_password: pwdNew,
+                        new_password_confirm: pwdConfirm,
+                      })
+                      setPwdSuccess(data.message)
+                      setPwdCurrent("")
+                      setPwdNew("")
+                      setPwdConfirm("")
+                    } catch (err) {
+                      setPwdError(getApiErrorMessage(err, "Không thể đổi mật khẩu. Vui lòng kiểm tra lại."))
+                    } finally {
+                      setIsChangingPwd(false)
+                    }
+                  }}
+                  className="space-y-4 max-w-md mt-4"
+                >
+                  {pwdError && <p className="text-xs text-destructive bg-destructive/10 p-3 rounded-xl font-medium">{pwdError}</p>}
+                  {pwdSuccess && <p className="text-xs text-emerald-500 bg-emerald-500/10 p-3 rounded-xl font-medium">{pwdSuccess}</p>}
+
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold">Mật khẩu hiện tại</label>
-                    <input type="password" className="flex h-10 w-full rounded-xl border border-input bg-background px-3 text-xs" />
+                    <input
+                      type="password"
+                      value={pwdCurrent}
+                      onChange={(e) => setPwdCurrent(e.target.value)}
+                      placeholder="••••••••"
+                      className="flex h-10 w-full rounded-xl border border-input bg-background px-3 text-xs"
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold">Mật khẩu mới</label>
-                    <input type="password" className="flex h-10 w-full rounded-xl border border-input bg-background px-3 text-xs" />
+                    <input
+                      type="password"
+                      value={pwdNew}
+                      onChange={(e) => setPwdNew(e.target.value)}
+                      placeholder="••••••••"
+                      className="flex h-10 w-full rounded-xl border border-input bg-background px-3 text-xs"
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold">Xác nhận mật khẩu mới</label>
-                    <input type="password" className="flex h-10 w-full rounded-xl border border-input bg-background px-3 text-xs" />
+                    <input
+                      type="password"
+                      value={pwdConfirm}
+                      onChange={(e) => setPwdConfirm(e.target.value)}
+                      placeholder="••••••••"
+                      className="flex h-10 w-full rounded-xl border border-input bg-background px-3 text-xs"
+                    />
                   </div>
-                  <Button className="rounded-xl text-xs font-bold gap-2">
-                    <Lock className="h-3.5 w-3.5" /> Đổi mật khẩu
+                  <Button type="submit" disabled={isChangingPwd || !pwdNew || pwdNew !== pwdConfirm} className="rounded-xl text-xs font-bold gap-2">
+                    <Lock className="h-3.5 w-3.5" /> {isChangingPwd ? "Đang xử lý..." : "Đổi mật khẩu"}
                   </Button>
-                </div>
+                </form>
               </div>
 
               {/* Google Authentication Card (ADR 8) */}

@@ -1,17 +1,23 @@
-# DevHub AI - Official Password Security Policy
+# DevHub AI - Password Policy & Password History Specification (Phase 3)
 
-## Policy Standards & Requirements
+## Overview
+This document details the Password Policy and Password History enforcement rules implemented in Phase 3.
 
-### 1. Password Complexity Rules
-- **Minimum Length**: 8 characters (12+ characters strongly recommended).
-- **Maximum Length**: 128 characters.
-- **Character Requirements**: At least 1 uppercase letter (`A-Z`), 1 numeric digit (`0-9`), and 1 special character (`!@#$%^&*`).
+---
 
-### 2. Cryptographic Storage & Hashing
-- **Algorithm**: `bcrypt` with cost factor / rounds = 12.
-- **Salting**: Automatic unique salt generated per password by `passlib`.
-- **Plaintext Prohibition**: Plaintext passwords must NEVER be logged, cached, or persisted.
+## Password Policy Rules (Part 8)
+Every password set via Registration, Reset Password, or Change Password must satisfy all rules:
 
-### 3. Password Reset & Rotation
-- **Forgot Password**: Verification code dispatched via OTP. Password reset invalidates all existing active sessions for that user.
-- **Brute-Force Lockout**: 5 failed password attempts trigger a 15-minute account lockout.
+1. **Length:** Minimum 8 characters, maximum 128 characters.
+2. **Uppercase:** At least one uppercase letter (`A-Z`).
+3. **Lowercase:** At least one lowercase letter (`a-z`).
+4. **Digit:** At least one numeric digit (`0-9`).
+5. **Special Character:** At least one special character (`!@#$%^&*()_+-=[]{};':"|,.<>/?`).
+
+---
+
+## Password History Enforcement (Part 18)
+- **Table:** `password_history` (`id`, `user_id`, `password_hash`, `created_at`).
+- **History Depth:** Stores the last **5** password hashes per user (`PASSWORD_HISTORY_LIMIT=5`).
+- **Enforcement:** When setting a new password, the hash is compared against the user's current password and all 5 historical entries. If a match is detected, the request is rejected with `HTTP 400 ("You cannot reuse a recently used password.")`.
+- **Pruning:** Entries exceeding the history limit are automatically purged.

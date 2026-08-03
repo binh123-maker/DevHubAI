@@ -1,16 +1,24 @@
-# DevHub AI - Security Event Logging Architecture
+# DevHub AI - Security Event Logging Specification (Phase 3)
 
 ## Overview
+Phase 3 mandates comprehensive auditing of all authentication and password events.
 
-The Security Event system records structured audit logs for all security actions across the application.
+---
 
-## Event Types & Severity Levels
+## Audited Event Types (Part 20)
 
-| Event Type | Severity | Description |
+| Event Type | Description | Trigger |
 | :--- | :--- | :--- |
-| `LOGIN_SUCCESS` | `INFO` | Successful credential or OAuth login. |
-| `LOGIN_FAILED` | `WARNING` | Invalid password or unknown email attempt. |
-| `PASSWORD_RESET` | `WARNING` | Password reset executed successfully. |
-| `ACCOUNT_LINKED` | `INFO` | New OAuth provider attached to account. |
-| `SESSION_REVOKED` | `INFO` | Active session manually terminated. |
-| `ACCOUNT_LOCKED` | `CRITICAL` | Account locked due to repeated brute-force attempts. |
+| `PASSWORD_RESET_REQUEST` | User requested password recovery OTP | `POST /password/forgot` |
+| `OTP_SENT` | OTP code dispatched via MailService | `POST /password/forgot` |
+| `OTP_FAILED` | Incorrect or expired OTP submitted | `POST /password/verify` |
+| `OTP_VERIFIED` | OTP code verified, reset token issued | `POST /password/verify` |
+| `PASSWORD_RESET_SUCCESS` | Password reset completed via token | `POST /password/reset` |
+| `PASSWORD_CHANGED` | Password changed by logged-in user | `POST /password/change` |
+| `PASSWORD_CHANGE_FAILED` | Current password incorrect or policy error | `POST /password/change` |
+| `PASSWORD_POLICY_VIOLATION` | Submitted password failed policy rules | Password validation failure |
+
+---
+
+## Log Record Payload Structure
+Each event records: `user_id`, `email`, `ip_address`, `user_agent`, `timestamp`, `result`, `reason`.

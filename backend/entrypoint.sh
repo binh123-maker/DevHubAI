@@ -16,8 +16,13 @@ conn.close()
     sleep 2
 done
 
+echo "Database connection ready."
 echo "Running migrations..."
-alembic upgrade head
+if ! alembic upgrade head; then
+    echo "[CRITICAL ERROR] Alembic migration failed! Exiting backend startup."
+    exit 1
+fi
 
+echo "Migrations executed successfully."
 echo "Starting API server..."
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000

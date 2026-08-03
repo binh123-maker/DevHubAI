@@ -19,8 +19,8 @@ def test_workspace_crud_flow(client, auth_headers):
     list_response = client.get("/api/v1/workspaces", headers=auth_headers)
     assert list_response.status_code == 200
     workspaces = list_response.json()
-    assert len(workspaces) == 1
-    assert workspaces[0]["id"] == workspace_id
+    assert len(workspaces) == 2
+    assert any(w["id"] == workspace_id for w in workspaces)
 
     get_response = client.get(f"/api/v1/workspaces/{workspace_id}", headers=auth_headers)
     assert get_response.status_code == 200
@@ -92,6 +92,6 @@ def test_list_workspaces_only_returns_own(client, auth_headers, other_user_heade
     owner_list = client.get("/api/v1/workspaces", headers=auth_headers).json()
     other_list = client.get("/api/v1/workspaces", headers=other_user_headers).json()
 
-    assert len(owner_list) == 2
-    assert len(other_list) == 1
+    assert len(owner_list) == 3
+    assert len(other_list) == 2
     assert owner_list[0]["name"] == "Owner WS 2"

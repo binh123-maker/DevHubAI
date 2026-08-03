@@ -1,14 +1,22 @@
-# DevHub AI - Transactional Mail Template Architecture
+# DevHub AI - Transactional Mail System Specification (Phase 3)
 
 ## Overview
+The `MailService` handles transactional email delivery across DevHub AI for OTP codes, password resets, and security alerts.
 
-The Mail Template System abstracts email delivery provider implementation (SMTP, SendGrid, AWS SES) and manages HTML/plain-text email templates with variable substitution and localization.
+---
 
-## Template Specifications Matrix
+## SMTP Configuration & Fallback Driver (Parts 3 & 26)
 
-| Template Type | Subject Line Template | Variables | Description |
+| Setting Name | Environment Key | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `WELCOME` | "Welcome to DevHub AI, {full_name}!" | `full_name` | Sent upon new account creation. |
-| `EMAIL_VERIFICATION_OTP` | "Your DevHub AI Verification Code: {otp_code}" | `otp_code`, `ttl_minutes` | OTP code for email verification. |
-| `PASSWORD_RESET_OTP` | "Reset your DevHub AI Password" | `otp_code`, `ttl_minutes` | OTP code for password reset. |
-| `ACCOUNT_LOCKED` | "Security Alert: Account Temporarily Locked" | `full_name`, `support_url` | Sent after excessive failed logins. |
+| `smtp_host` | `SMTP_HOST` | `"localhost"` | Hostname of SMTP relay server |
+| `smtp_port` | `SMTP_PORT` | `587` | SMTP port (587 TLS / 465 SSL / 25) |
+| `smtp_username` | `SMTP_USERNAME` | `""` | Authentication username |
+| `smtp_password` | `SMTP_PASSWORD` | `""` | Authentication password |
+| `smtp_from_email` | `SMTP_FROM_EMAIL` | `"noreply@devhub.ai"` | Sender address |
+| `smtp_tls` | `SMTP_TLS` | `True` | Enable TLS encryption |
+
+---
+
+## Development Mode Fallback
+When SMTP credentials are empty or `smtp_host` is `"localhost"`, `MailService` operates in **Console Log Fallback Mode**. Transactional emails and OTP codes are printed directly to the application console logger, enabling offline testing without requiring a live SMTP relay.

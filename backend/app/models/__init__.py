@@ -9,7 +9,9 @@ from app.models.document import (
     DocumentStructureNode,
 )
 from app.models.oauth_account import OAuthAccount
+from app.models.password_history import PasswordHistory
 from app.models.user import RefreshToken, User, UserProfile
+from app.models.verification_code import VerificationCode
 from app.models.workspace import Folder, Workspace
 
 __all__ = [
@@ -17,6 +19,8 @@ __all__ = [
     "UserProfile",
     "RefreshToken",
     "OAuthAccount",
+    "VerificationCode",
+    "PasswordHistory",
     "Workspace",
     "Folder",
     "Document",

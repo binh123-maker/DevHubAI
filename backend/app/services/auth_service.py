@@ -12,16 +12,11 @@ from app.core.security import (
     hash_token,
     verify_password,
 )
+from app.auth.security.password_policy import AuthError, validate_password_policy
 from app.models.enums import OAuthProvider
 from app.models.user import RefreshToken, User, UserProfile
+from app.models.workspace import Workspace
 from app.schemas.user import UserProfileResponse
-
-
-class AuthError(Exception):
-    def __init__(self, message: str, status_code: int = 400) -> None:
-        self.message = message
-        self.status_code = status_code
-        super().__init__(message)
 
 
 def to_user_response(user: User) -> UserProfileResponse:
@@ -61,14 +56,27 @@ def register_user(db: Session, email: str, password: str, full_name: str) -> tup
     if existing:
         raise AuthError("Email already registered", status_code=409)
 
+    # Enforce Password Policy (Part 8)
+    validate_password_policy(password)
+
+    now = datetime.now(timezone.utc)
     user = User(
         email=normalized_email,
         password_hash=get_password_hash(password),
         oauth_provider=OAuthProvider.LOCAL,
+        last_login_at=now,
     )
     profile = UserProfile(user=user, full_name=full_name.strip())
     db.add(user)
     db.add(profile)
+
+    # Create Default Workspace for new Email user
+    default_workspace = Workspace(
+        user=user,
+        name="My Workspace",
+        description="Default workspace created automatically",
+    )
+    db.add(default_workspace)
 
     try:
         db.flush()

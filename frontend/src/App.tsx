@@ -5,6 +5,7 @@ import { AuthLayout } from "@/components/layout/AuthLayout"
 import { ProtectedRoute, PublicOnlyRoute } from "@/components/routing/ProtectedRoute"
 import ChatHistoryPage from "@/pages/ChatHistoryPage"
 import DocumentViewerPage from "@/pages/DocumentViewerPage"
+import ForgotPasswordPage from "@/pages/ForgotPasswordPage"
 import LandingPage from "@/pages/LandingPage"
 import LoginPage from "@/pages/LoginPage"
 import OAuthCallbackPage from "@/pages/OAuthCallbackPage"
@@ -26,6 +27,7 @@ export default function App() {
           <Route element={<AuthLayout />}>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           </Route>
         </Route>
 

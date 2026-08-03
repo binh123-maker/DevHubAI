@@ -36,9 +36,13 @@ def other_user_headers(client):
     return register_user(client, "other-user@devhub.ai", "Other User")
 
 
+from app.db.base import Base
+
+
 @pytest.fixture()
 def db_engine():
     engine = create_engine(settings.database_url, pool_pre_ping=True)
+    Base.metadata.create_all(bind=engine)
     yield engine
     engine.dispose()
 
