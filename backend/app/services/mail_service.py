@@ -7,90 +7,68 @@ from typing import Any
 from app.auth.interfaces.mail import IMailService
 from app.core.config import settings
 
+from pathlib import Path
+import jinja2
+
 logger = logging.getLogger(__name__)
+
+TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 
 
 class MailService(IMailService):
-    """Transactional Mail Service supporting SMTP and fallback development logger (Parts 3 & 23)."""
+    """Transactional Mail Service using Jinja2 templates and SMTP / Dev Log fallback."""
+
+    def __init__(self) -> None:
+        self.env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(TEMPLATES_DIR),
+            autoescape=True,
+        )
 
     def _render_template(self, template_name: str, context: dict[str, Any]) -> tuple[str, str]:
-        """Renders HTML and Text email templates based on template_name and context variables."""
+        """Renders HTML and Text email templates using Jinja2 design system templates."""
         full_name = context.get("full_name", "DevHub AI User")
         otp_code = context.get("otp_code", "")
         ttl_minutes = context.get("ttl_minutes", 10)
 
+        # Plain Text Fallback Rendering
         if template_name in ("forgot_password", "password_reset_otp", "otp_verification"):
             text_content = (
                 f"Hello {full_name},\n\n"
                 f"Your DevHub AI verification code is: {otp_code}\n"
                 f"This code will expire in {ttl_minutes} minutes.\n\n"
+                "Never share this code with anyone. DevHub AI staff will never ask for your OTP.\n\n"
                 "If you did not request this code, please ignore this message.\n\n"
                 "Best regards,\nDevHub AI Team"
             )
-            html_content = f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <meta charset="utf-8">
-              <style>
-                body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 24px; }}
-                .card {{ max-width: 480px; margin: 0 auto; background: #1e293b; border-radius: 20px; padding: 32px; border: 1px solid #334155; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }}
-                .brand {{ font-size: 24px; font-weight: 800; color: #6366f1; text-align: center; margin-bottom: 24px; }}
-                .otp-box {{ background: #0f172a; border-radius: 16px; padding: 20px; text-align: center; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #38bdf8; border: 1px solid #38bdf8; margin: 24px 0; }}
-                .footer {{ text-align: center; font-size: 12px; color: #94a3b8; margin-top: 24px; }}
-              </style>
-            </head>
-            <body>
-              <div class="card">
-                <div class="brand">DevHub AI</div>
-                <h2>Mã xác thực của bạn</h2>
-                <p>Xin chào <strong>{full_name}</strong>,</p>
-                <p>Nhập mã xác thực bên dưới để tiếp tục quy trình khôi phục mật khẩu DevHub AI:</p>
-                <div class="otp-box">{otp_code}</div>
-                <p style="font-size: 13px; color: #cbd5e1;">Mã có hiệu lực trong vòng <strong>{ttl_minutes} phút</strong> và chỉ sử dụng được 1 lần.</p>
-                <div class="footer">
-                  <p>© 2026 DevHub AI. Built for Developers.</p>
-                </div>
-              </div>
-            </body>
-            </html>
-            """
-            return text_content, html_content
-
         elif template_name == "password_changed":
             text_content = (
                 f"Hello {full_name},\n\n"
                 "Your DevHub AI password was changed successfully.\n"
+                "All other active login sessions have been invalidated for security.\n"
                 "If you did not perform this action, please contact support immediately.\n\n"
                 "Best regards,\nDevHub AI Team"
             )
-            html_content = f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <meta charset="utf-8">
-              <style>
-                body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 24px; }}
-                .card {{ max-width: 480px; margin: 0 auto; background: #1e293b; border-radius: 20px; padding: 32px; border: 1px solid #334155; }}
-                .brand {{ font-size: 24px; font-weight: 800; color: #6366f1; text-align: center; margin-bottom: 24px; }}
-                .alert {{ background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; color: #34d399; padding: 16px; border-radius: 12px; margin: 16px 0; font-size: 14px; text-align: center; }}
-              </style>
-            </head>
-            <body>
-              <div class="card">
-                <div class="brand">DevHub AI</div>
-                <h2>Thông báo bảo mật</h2>
-                <p>Xin chào <strong>{full_name}</strong>,</p>
-                <div class="alert">✓ Mật khẩu tài khoản DevHub AI của bạn đã được thay đổi thành công.</div>
-                <p style="font-size: 12px; color: #94a3b8;">Tất cả phiên đăng nhập khác trên các thiết bị đã tự động ngắt kết nối để đảm bảo an toàn.</p>
-              </div>
-            </body>
-            </html>
-            """
-            return text_content, html_content
+        else:
+            text_content = f"DevHub AI Notification: {template_name}\n\nHello {full_name}"
 
-        # Fallback generic message
-        return f"DevHub AI Notification: {template_name}", f"<h2>DevHub AI Notification</h2><p>{template_name}</p>"
+        # Jinja2 HTML Rendering
+        template_map = {
+            "forgot_password": "emails/forgot_password.html",
+            "password_reset_otp": "emails/forgot_password.html",
+            "otp_verification": "emails/otp_verification.html",
+            "password_changed": "emails/password_changed.html",
+        }
+        template_file = template_map.get(template_name, f"emails/{template_name}.html")
+
+        try:
+            template = self.env.get_template(template_file)
+            html_content = template.render(**context)
+        except jinja2.TemplateNotFound:
+            logger.warning(f"[MailService] Template '{template_file}' not found, falling back to base template.")
+            template = self.env.get_template("emails/base.html")
+            html_content = template.render(**context)
+
+        return text_content, html_content
 
     async def send_mail(
         self,

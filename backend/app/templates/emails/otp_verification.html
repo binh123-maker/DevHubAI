@@ -1,0 +1,31 @@
+{% extends "emails/base.html" %}
+
+{% block title %}DevHub AI - OTP Verification{% endblock %}
+
+{% block content %}
+<h1 class="email-heading">OTP Verification</h1>
+
+<p class="user-greeting">Hello {{ full_name | default("Developer") }},</p>
+
+<p class="email-text">
+  Use the verification code below to verify your account identity on DevHub AI:
+</p>
+
+<div style="text-align: center;">
+  <div class="expiration-badge">⏰ Valid for {{ ttl_minutes | default(10) }} minutes</div>
+</div>
+
+<div class="otp-container">
+  <div class="otp-code">{{ otp_code }}</div>
+</div>
+
+<div class="security-box">
+  <div class="security-title">🔒 Security Reminder</div>
+  <ul class="security-list">
+    <li>OTP expires in {{ ttl_minutes | default(10) }} minutes</li>
+    <li>OTP can only be used once</li>
+    <li>Never share this code with anyone</li>
+    <li>DevHub AI staff will never ask for your OTP</li>
+  </ul>
+</div>
+{% endblock %}
