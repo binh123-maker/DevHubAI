@@ -31,6 +31,13 @@ export interface ChatMessage {
   created_at: string;
   retrieved_chunk_count?: number;
   citations?: Citation[];
+  provider?: string;
+  model_name?: string;
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+  latency_ms?: number;
+  finish_reason?: string;
 }
 
 export interface Chat {

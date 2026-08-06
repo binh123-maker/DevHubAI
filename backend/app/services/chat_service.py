@@ -275,6 +275,13 @@ def get_chat_messages(db: Session, user_id: UUID, chat_id: UUID) -> list[ChatMes
                 created_at=msg.created_at,
                 retrieved_chunk_count=len(citations) if citations else None,
                 citations=citations,
+                provider=msg.provider,
+                model_name=msg.model_name,
+                prompt_tokens=msg.prompt_tokens,
+                completion_tokens=msg.completion_tokens,
+                total_tokens=msg.total_tokens,
+                latency_ms=msg.latency_ms,
+                finish_reason=msg.finish_reason,
             )
         )
     return responses
@@ -288,6 +295,14 @@ def send_message(db: Session, user_id: UUID, chat_id: UUID, msg_in: ChatMessageC
     4. Save AI message.
     """
     chat = get_chat(db, user_id, chat_id)
+
+    provider_val = None
+    model_name_val = None
+    prompt_tokens_val = None
+    completion_tokens_val = None
+    total_tokens_val = None
+    latency_ms_val = None
+    finish_reason_val = None
 
     # 1. Save User Message
     user_msg = ChatMessage(
@@ -448,6 +463,15 @@ def send_message(db: Session, user_id: UUID, chat_id: UUID, msg_in: ChatMessageC
                 max_tokens=settings.ai_max_tokens
             )
             ai_content = response.content
+            provider_val = getattr(response, "provider", None)
+            model_name_val = getattr(response, "model", None)
+            finish_reason_val = getattr(response, "finish_reason", None)
+            if getattr(response, "latency_ms", None) is not None:
+                latency_ms_val = int(response.latency_ms)
+            if getattr(response, "usage", None):
+                prompt_tokens_val = getattr(response.usage, "input_tokens", None)
+                completion_tokens_val = getattr(response.usage, "output_tokens", None)
+                total_tokens_val = getattr(response.usage, "total_tokens", None)
         except Exception as e:
             ai_content = f"Sorry, I encountered an error communicating with the AI service: {str(e)}"
 
@@ -456,6 +480,13 @@ def send_message(db: Session, user_id: UUID, chat_id: UUID, msg_in: ChatMessageC
         chat_id=chat.id,
         role=MessageRole.ASSISTANT,
         content=ai_content,
+        provider=provider_val,
+        model_name=model_name_val,
+        prompt_tokens=prompt_tokens_val,
+        completion_tokens=completion_tokens_val,
+        total_tokens=total_tokens_val,
+        latency_ms=latency_ms_val,
+        finish_reason=finish_reason_val,
     )
     db.add(ai_msg)
     chat.message_count += 1
@@ -502,6 +533,13 @@ def send_message(db: Session, user_id: UUID, chat_id: UUID, msg_in: ChatMessageC
         created_at=ai_msg.created_at,
         retrieved_chunk_count=retrieved_chunk_count,
         citations=citation_responses,
+        provider=ai_msg.provider,
+        model_name=ai_msg.model_name,
+        prompt_tokens=ai_msg.prompt_tokens,
+        completion_tokens=ai_msg.completion_tokens,
+        total_tokens=ai_msg.total_tokens,
+        latency_ms=ai_msg.latency_ms,
+        finish_reason=ai_msg.finish_reason,
     )
 
 

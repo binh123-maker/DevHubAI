@@ -39,4 +39,4 @@ class VerificationCode(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
-    user: Mapped["User | None"] = relationship()
+    user: Mapped["User | None"] = relationship(back_populates="verification_codes")

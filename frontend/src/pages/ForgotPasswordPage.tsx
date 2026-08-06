@@ -15,14 +15,12 @@ export default function ForgotPasswordPage() {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
 
   const [email, setEmail] = useState("")
-  const [otpCode, setOtpCode] = useState("")
   const [resetToken, setResetToken] = useState("")
 
   const [newPassword, setNewPassword] = useState("")
   const [newPasswordConfirm, setNewPasswordConfirm] = useState("")
 
   const [error, setError] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
 
   const [isLoading, setIsLoading] = useState(false)
   const [cooldown, setCooldown] = useState(0)
@@ -66,7 +64,6 @@ export default function ForgotPasswordPage() {
     setIsLoading(true)
     try {
       const { data } = await authApi.forgotPassword(email.trim())
-      setMessage(data.message)
       setCooldown(data.cooldown_seconds || 60)
       setStep(2)
     } catch (err) {

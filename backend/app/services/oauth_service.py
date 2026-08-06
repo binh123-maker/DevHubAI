@@ -137,8 +137,6 @@ class OAuthAccountService:
         new_user = User(
             email=info.email,
             password_hash=None,
-            oauth_provider=OAuthProvider.GOOGLE,
-            oauth_id=info.provider_user_id,
             role=UserRole.USER,
             is_active=True,
             last_login_at=now,

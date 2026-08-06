@@ -63,7 +63,6 @@ def register_user(db: Session, email: str, password: str, full_name: str) -> tup
     user = User(
         email=normalized_email,
         password_hash=get_password_hash(password),
-        oauth_provider=OAuthProvider.LOCAL,
         last_login_at=now,
     )
     profile = UserProfile(user=user, full_name=full_name.strip())

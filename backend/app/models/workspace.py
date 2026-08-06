@@ -70,3 +70,5 @@ class Folder(Base):
 
     workspace: Mapped["Workspace"] = relationship(back_populates="folders")
     documents: Mapped[list["Document"]] = relationship(back_populates="folder")
+    parent: Mapped["Folder | None"] = relationship("Folder", remote_side=[id], back_populates="children")
+    children: Mapped[list["Folder"]] = relationship("Folder", back_populates="parent", passive_deletes=True)

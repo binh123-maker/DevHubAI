@@ -63,5 +63,12 @@ class ChatMessageResponse(BaseModel):
     created_at: datetime
     retrieved_chunk_count: int | None = None
     citations: list[CitationResponse] = []
+    provider: str | None = None
+    model_name: str | None = None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    total_tokens: int | None = None
+    latency_ms: int | None = None
+    finish_reason: str | None = None
 
     model_config = {"from_attributes": True}

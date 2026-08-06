@@ -13,6 +13,8 @@ if TYPE_CHECKING:
     from app.models.chat import AIUsageLog, Chat
     from app.models.document import Document
     from app.models.oauth_account import OAuthAccount
+    from app.models.password_history import PasswordHistory
+    from app.models.verification_code import VerificationCode
     from app.models.workspace import Workspace
 
 
@@ -22,20 +24,12 @@ class User(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    oauth_provider: Mapped[OAuthProvider] = mapped_column(
-        Enum(OAuthProvider, name="oauth_provider", values_callable=lambda x: [e.value for e in x]),
-        nullable=False,
-        default=OAuthProvider.LOCAL,
-    )
-    oauth_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole, name="user_role", values_callable=lambda x: [e.value for e in x]),
         nullable=False,
         default=UserRole.USER,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    reset_token: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    reset_expires: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
@@ -49,6 +43,8 @@ class User(Base):
     documents: Mapped[list["Document"]] = relationship(back_populates="user")
     chats: Mapped[list["Chat"]] = relationship(back_populates="user")
     ai_usage_logs: Mapped[list["AIUsageLog"]] = relationship(back_populates="user")
+    password_history_entries: Mapped[list["PasswordHistory"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    verification_codes: Mapped[list["VerificationCode"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
 class UserProfile(Base):
